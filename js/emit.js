@@ -86,7 +86,8 @@ var Emit;
                 });
             },
             sync: function sync() {
-                var emitters = [this].concat(Array.prototype.slice.call(arguments));
+                var args = Array.isArray(arguments[0]) ? arguments[0] : Array.prototype.slice.call(arguments, 0);
+                var emitters = [this].concat(args);
                 var done = false;
 
                 function isDone() {
@@ -94,14 +95,41 @@ var Emit;
                 }
 
                 return Emit.create(function (notify) {
-                    var results = emitters.map(function () { return { value: undefined, done: true }; });
+                    var values = emitters.map(function () { return undefined; });
+                    var states = emitters.map(function () { return false; });
                     function update(index, value) {
-                        var result = results[index];
-                        result.value = value;
-                        result.done = false;
-                        if (results.every(function (result) { return !result.done; })) {
-                            var values = results.map(function (result) { result.done = true; return result.value; });
-                            notify(values);
+                        values[index] = value;
+                        states[index] = true;
+                        if (states.every(function (state) { return state; })) {
+                            notify(values.slice(0));
+                        }
+                    }
+                    emitters.forEach(function (emitter, index) {
+                        emitter.until(isDone).forEach(update.bind(null, index));
+                    });
+                }, function () {
+                    done = true;
+                });
+            },
+            combine: function combine() {
+                var args = Array.isArray(arguments[0]) ? arguments[0] : Array.prototype.slice.call(arguments, 0);
+                var emitters = [this].concat(args);
+                var done = false;
+
+                function isDone() {
+                    return done;
+                }
+
+                return Emit.create(function (notify) {
+                    var values = emitters.map(function () { return undefined; });
+                    var states = emitters.map(function () { return false; });
+                    var ready = false;
+                    function update(index, value) {
+                        values[index] = value;
+                        states[index] = true;
+                        if (ready || states.every(function (state) { return state; })) {
+                            ready = true;
+                            notify(values.slice(0));
                         }
                     }
                     emitters.forEach(function (emitter, index) {
@@ -153,7 +181,7 @@ var Emit;
         interval: {
             writable: true,
             value: function interval() {
-                var args = Array.prototype.slice.call(arguments);
+                var args = Array.prototype.slice.call(arguments, 0);
                 var id;
                 return Emit.create(function (notify) {
                     id = window.setInterval.apply(window, [notify].concat(args));
@@ -166,13 +194,19 @@ var Emit;
             writable: true,
             value: function promise(p) {
                 return {
-                    resolve: Emit.create(function (notify) {
+                    resolved: Emit.create(function (notify) {
                         p.then(notify);
                     }),
-                    reject: Emit.create(function (notify) {
+                    rejected: Emit.create(function (notify) {
                         p.then(null, notify);
                     })
                 };
+            }
+        },
+        value: {
+            writable: true,
+            value: function value(v) {
+                return this.promise(Promise.resolve(v)).resolved;
             }
         }
     });

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>Emit Value</title>
+    <style>
+        label {
+            display: inline-block;
+            width: 4em;
+            margin-right: 1em;
+        }
+        input, output {
+            width: 8em;
+        }
+    </style>
+</head>
+<body>
+    <h2>Emit value</h2>
+
+    <form onsubmit="return false">
+        <label for="first">First:</label>
+        <input type="number" id="first">
+        <br>
+        <label for="second">Second:</label>
+        <input type="number" id="second">
+        <br>
+        <label for="third">Third:</label>
+        <input type="number" id="third">
+        <br>
+        <label for="result">Result:</label>
+        <output id="result"/>
+    </form>
+
+    <script src="js/emit.js"></script>
+    <script>
+        'use strict';
+
+        function toNumber(ev) {
+            return Number(ev.target.value);
+        }
+
+        var inputs = Array.prototype.slice.call(document.querySelectorAll('input'), 0).map(function (input) {
+            return Emit.events('input', input).map(toNumber);
+        });
+
+        var result = document.getElementById('result');
+
+        Emit.value(0).combine(inputs).map(function (ns) {
+            return ns.reduce(function (r, n) { return r + n; }, 0);
+        }).forEach(function (n) {
+            result.value = n;
+        });
+    </script>
+</body>
+</html>
