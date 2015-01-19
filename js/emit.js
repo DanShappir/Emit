@@ -76,7 +76,7 @@ var Emit;
                 });
             },
             head: function head(number) {
-                number || (number = 1);
+                number = typeof number === 'undefined' ? 1 : Number(number);
                 return Emit.create(function (notify) {
                     pump(function* () {
                         for (var i = 0; i < number; ++i) {
@@ -111,10 +111,10 @@ var Emit;
                     done = true;
                 });
             },
-            promise: function promise() {
-                return new Promise(function (resolve) {
+            promise: function promise(fail) {
+                return new Promise(function (resolve, reject) {
                     pump(function* () {
-                        resolve(yield);
+                        (fail ? reject : resolve)(yield);
                     });
                 });
             }
@@ -165,13 +165,14 @@ var Emit;
         promise: {
             writable: true,
             value: function promise(p) {
-                return Emit.create(function (notify) {
-                    p.then(function (value) {
-                        notify({ value: value, success: true });
-                    }, function (reason) {
-                        notify({ value: reason, success: false });
-                    });
-                });
+                return {
+                    resolve: Emit.create(function (notify) {
+                        p.then(notify);
+                    }),
+                    reject: Emit.create(function (notify) {
+                        p.then(null, notify);
+                    })
+                };
             }
         }
     });

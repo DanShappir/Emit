@@ -12,5 +12,5 @@
 			this.transform = 'translate3d(' + ev.clientX + 'px,' + ev.clientY + 'px,0)';
 		}.bind(document.querySelector('div').style));
 
-	Emit.promise(Emit.events('click', window)).then(function () { alert('bye'); });
+	Emit.events('click', window).promise().then(function () { alert('bye'); });
 }());
