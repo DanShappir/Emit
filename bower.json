@@ -1,0 +1,23 @@
+{
+  "name": "Emit",
+  "version": "0.0.1",
+  "homepage": "https://github.com/DanShappir/Emit",
+  "authors": [
+    "Dan Shappir <dansh@wix.com>"
+  ],
+  "description": "Simple Reactive JavaScript library using ES6 generators/iterators",
+  "main": "js/emit.js",
+  "keywords": [
+    "reactive",
+    "es6",
+    "javascript"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
