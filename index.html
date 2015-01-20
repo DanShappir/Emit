@@ -21,10 +21,24 @@
 </head>
 <body>
     <h2>Emit</h2>
-
     <div>Moving</div>
 
     <script src="js/emit.js"></script>
-    <script src="test/test.js"></script>
+    <script>
+        'use strict';
+
+        Emit.events('mousemove', window)
+                .sync(Emit.animationFrames())
+                .until(Emit.events('click', window))
+                .map(function (v) {
+                    return v[0];
+                }).filter(function (ev) {
+                    return ev.clientX < 600;
+                }).forEach(function (ev) {
+                    this.transform = 'translate3d(' + ev.clientX + 'px,' + ev.clientY + 'px,0)';
+                }.bind(document.querySelector('div').style));
+
+        Emit.events('click', window).promise().then(function () { alert('bye'); });
+    </script>
 </body>
 </html>

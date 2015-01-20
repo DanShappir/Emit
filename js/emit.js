@@ -2,6 +2,8 @@ var Emit;
 (function (Emit) {
     'use strict';
 
+    function noop() {};
+
     function create(source, done) {
         var toFilter = typeof Sequences !== 'undefined' ?
             Sequences.toFilter :
@@ -18,6 +20,33 @@ var Emit;
             iterator.next();
         }
 
+        function join(args, isReady) {
+            args = Array.isArray(args[0]) ? args[0] : Array.prototype.slice.call(args, 0);
+            var emitters = [this].concat(args);
+            var done = false;
+
+            function isDone() {
+                return done;
+            }
+
+            return Emit.create(function (notify) {
+                var values = emitters.map(function () { return undefined; });
+                var states = emitters.map(function () { return false; });
+                function update(index, value) {
+                    values[index] = value;
+                    states[index] = true;
+                    if (isReady(states)) {
+                        notify(values.slice(0));
+                    }
+                }
+                emitters.forEach(function (emitter, index) {
+                    emitter.until(isDone).forEach(update.bind(null, index));
+                });
+            }, function () {
+                done = true;
+            });
+        }
+
         return {
             isEmitter: true,
 
@@ -28,18 +57,27 @@ var Emit;
                     }
                 });
             },
-            filter: function filter(filter) {
+            match: function match(filter) {
                 var callback = toFilter(filter);
-                return Emit.create(function (notify) {
-                    pump(function* () {
-                        while (true) {
-                            var v = yield;
-                            if (callback(v)) {
-                                notify(v);
-                            }
-                        }
-                    });
+                var resolved = noop;
+                var rejected = noop;
+                pump(function* () {
+                    while (true) {
+                        var v = yield;
+                        (callback(v) ? resolved : rejected)(v);
+                    }
                 });
+                return {
+                    resolved: Emit.create(function (notify) {
+                        resolved = notify;
+                    }),
+                    rejected: Emit.create(function (notify) {
+                        rejected = notify;
+                    })
+                };
+            },
+            filter: function filter(filter) {
+                return this.match(filter).resolved;
             },
             map: function map(callback) {
                 return Emit.create(function (notify) {
@@ -86,58 +124,29 @@ var Emit;
                 });
             },
             sync: function sync() {
-                var args = Array.isArray(arguments[0]) ? arguments[0] : Array.prototype.slice.call(arguments, 0);
-                var emitters = [this].concat(args);
-                var done = false;
-
-                function isDone() {
-                    return done;
-                }
-
-                return Emit.create(function (notify) {
-                    var values = emitters.map(function () { return undefined; });
-                    var states = emitters.map(function () { return false; });
-                    function update(index, value) {
-                        values[index] = value;
-                        states[index] = true;
+                return join.call(this,
+                    arguments,
+                    function isReady(states) {
                         if (states.every(function (state) { return state; })) {
-                            notify(values.slice(0));
+                            states.forEach(function (state, index, array) { array[index] = false; });
+                            return true;
                         }
+                        return false;
                     }
-                    emitters.forEach(function (emitter, index) {
-                        emitter.until(isDone).forEach(update.bind(null, index));
-                    });
-                }, function () {
-                    done = true;
-                });
+                );
             },
             combine: function combine() {
-                var args = Array.isArray(arguments[0]) ? arguments[0] : Array.prototype.slice.call(arguments, 0);
-                var emitters = [this].concat(args);
-                var done = false;
-
-                function isDone() {
-                    return done;
-                }
-
-                return Emit.create(function (notify) {
-                    var values = emitters.map(function () { return undefined; });
-                    var states = emitters.map(function () { return false; });
-                    var ready = false;
-                    function update(index, value) {
-                        values[index] = value;
-                        states[index] = true;
+                var ready = false;
+                return join.call(this,
+                    arguments,
+                    function isReady(states) {
                         if (ready || states.every(function (state) { return state; })) {
                             ready = true;
-                            notify(values.slice(0));
+                            return true;
                         }
+                        return false;
                     }
-                    emitters.forEach(function (emitter, index) {
-                        emitter.until(isDone).forEach(update.bind(null, index));
-                    });
-                }, function () {
-                    done = true;
-                });
+                );
             },
             promise: function promise(fail) {
                 return new Promise(function (resolve, reject) {

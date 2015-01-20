@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>Odd / Even</title>
+</head>
+<body>
+    <h2>Odd / Even</h2>
+
+    <script src="js/emit.js"></script>
+    <script>
+        'use strict';
+
+        var counter = 0;
+        var numbers = Emit.interval()
+            .map(function () {
+                return counter++;
+            })
+            .head(10)
+            .match(function (v) {
+                return v % 2;
+            });
+
+        numbers.resolved.forEach(function (v) { alert('odd ' + v); });
+        numbers.rejected.forEach(function (v) { alert('even ' + v); });
+    </script>
+</body>
+</html>
