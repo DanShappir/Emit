@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="utf-8">
+    <title>Time Flies for Emit</title>
+    <style>
+        #container {
+            font-family: Consolas monospace;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <div id="textContainer"></div>
+    <div id="container" class="container">
+        <div class="page-header">
+            <h1>Time Flies for Emit Example</h1>
+            <p class="lead">Example to show effects with delaying each character</p>
+        </div>
+    </div>
+
+    <script src="js/emit.js"></script>
+    <script>
+        'use strict';
+
+        function getOffset(element) {
+            var doc = element.ownerDocument,
+                    docElem = doc.documentElement,
+                    body = doc.body,
+                    clientTop  = docElem.clientTop  || body.clientTop  || 0,
+                    clientLeft = docElem.clientLeft || body.clientLeft || 0,
+                    scrollTop  = window.pageYOffset,
+                    scrollLeft = window.pageXOffset;
+            return { top : scrollTop  - clientTop, left: scrollLeft - clientLeft };
+        }
+
+        var text = 'TIME FLIES LIKE AN ARROW',
+            container = document.querySelector('#container'),
+            mousemove = Emit.events('mousemove', document);
+
+        // Get the offset on mousemove from the container
+        var mouseMoveOffset = mousemove.map(function (e) {
+            var offset = getOffset(container);
+            return {
+                offsetX : e.clientX - offset.left + document.documentElement.scrollLeft,
+                offsetY : e.clientY - offset.top + document.documentElement.scrollTop
+            };
+        });
+
+        Emit.collection(text.split('').map(function (letter, i) {
+            // Add an element for each letter
+            var s = document.createElement('span');
+            s.innerHTML = letter;
+            s.style.position = 'absolute';
+            container.appendChild(s);
+
+            // move each letter with a delay based upon overall position
+            return mouseMoveOffset.delay(i * 100).map(function (pos) {
+                return { pos: pos, element: s, index: i };
+            });
+        })).forEach(function (data) {
+            data.element.style.top = data.pos.offsetY + 'px';
+            data.element.style.left = data.pos.offsetX + data.index * 10 + 15 + 'px';
+        });
+    </script>
+</body>
+</html>

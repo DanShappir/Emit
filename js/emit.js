@@ -154,6 +154,15 @@ var Emit;
                         (fail ? reject : resolve)(yield);
                     });
                 });
+            },
+            delay: function delay(duration) {
+                return Emit.create(function (notify) {
+                    pump(function* () {
+                        while (true) {
+                            setTimeout(notify.bind(null, yield), duration);
+                        }
+                    });
+                });
             }
         };
     }
@@ -216,6 +225,16 @@ var Emit;
             writable: true,
             value: function value(v) {
                 return this.promise(Promise.resolve(v)).resolved;
+            }
+        },
+        collection: {
+            writable: true,
+            value: function collection(emitters) {
+                return Emit.create(function (notify) {
+                    emitters.forEach(function (emitter) {
+                        emitter.forEach(notify);
+                    });
+                });
             }
         }
     });
