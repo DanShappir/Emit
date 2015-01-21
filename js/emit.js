@@ -4,6 +4,10 @@ var Emit;
 
     function noop() {};
 
+    function async(callback) {
+        Promise.resolve().then(callback);
+    }
+
     function create(source, done) {
         var toFilter = typeof Sequences !== 'undefined' ?
             Sequences.toFilter :
@@ -18,33 +22,6 @@ var Emit;
                 }
             });
             iterator.next();
-        }
-
-        function join(args, isReady) {
-            args = Array.isArray(args[0]) ? args[0] : Array.prototype.slice.call(args, 0);
-            var emitters = [this].concat(args);
-            var done = false;
-
-            function isDone() {
-                return done;
-            }
-
-            return Emit.create(function (notify) {
-                var values = emitters.map(function () { return undefined; });
-                var states = emitters.map(function () { return false; });
-                function update(index, value) {
-                    values[index] = value;
-                    states[index] = true;
-                    if (isReady(states)) {
-                        notify(values.slice(0));
-                    }
-                }
-                emitters.forEach(function (emitter, index) {
-                    emitter.until(isDone).forEach(update.bind(null, index));
-                });
-            }, function () {
-                done = true;
-            });
         }
 
         return {
@@ -123,31 +100,6 @@ var Emit;
                     });
                 });
             },
-            sync: function sync() {
-                return join.call(this,
-                    arguments,
-                    function isReady(states) {
-                        if (states.every(function (state) { return state; })) {
-                            states.forEach(function (state, index, array) { array[index] = false; });
-                            return true;
-                        }
-                        return false;
-                    }
-                );
-            },
-            combine: function combine() {
-                var ready = false;
-                return join.call(this,
-                    arguments,
-                    function isReady(states) {
-                        if (ready || states.every(function (state) { return state; })) {
-                            ready = true;
-                            return true;
-                        }
-                        return false;
-                    }
-                );
-            },
             promise: function promise(fail) {
                 return new Promise(function (resolve, reject) {
                     pump(function* () {
@@ -167,10 +119,92 @@ var Emit;
         };
     }
 
+    function join(args, isReady) {
+        var emitters = args.length === 1 ? args[0] : Array.prototype.slice.call(args, 0);
+        var done = false;
+
+        function isDone() {
+            return done;
+        }
+
+        return Emit.create(function (notify) {
+            var values = emitters.map(function () { return undefined; });
+            var states = emitters.map(function () { return false; });
+            function update(index, value) {
+                values[index] = value;
+                states[index] = true;
+                if (isReady(states)) {
+                    notify(values.slice(0));
+                }
+            }
+            emitters.forEach(function (emitter, index) {
+                emitter.until(isDone).forEach(update.bind(null, index));
+            });
+        }, function () {
+            done = true;
+        });
+    }
+
     Object.defineProperties(Emit, {
         create: {
             writable: true,
             value: create
+        },
+        value: {
+            writable: true,
+            value: function value(v) {
+                return Emit.create(function (notify) {
+                    async(notify.bind(null, v));
+                });
+            }
+        },
+        sequence: {
+            writable: true,
+            value: function sequence(s) {
+                return Emit.create(function (notify) {
+                    async(s.forEach.bind(s, notify));
+                });
+            }
+        },
+        merge: {
+            writable: true,
+            value: function merge() {
+                var emitters = arguments.length === 1 ? arguments[0] : Array.prototype.slice.call(arguments, 0);
+                return Emit.create(function (notify) {
+                    emitters.forEach(function (emitter) {
+                        Emit.sequence(emitter).forEach(notify);
+                    });
+                });
+            }
+        },
+        sync: {
+            writable: true,
+            value: function sync() {
+                return join(arguments,
+                    function isReady(states) {
+                        if (states.every(function (state) { return state; })) {
+                            states.forEach(function (state, index, array) { array[index] = false; });
+                            return true;
+                        }
+                        return false;
+                    }
+                );
+            }
+        },
+        combine: {
+            writable: true,
+            value: function combine() {
+                var ready = false;
+                return join(arguments,
+                    function isReady(states) {
+                        if (ready || states.every(function (state) { return state; })) {
+                            ready = true;
+                            return true;
+                        }
+                        return false;
+                    }
+                );
+            }
         },
         events: {
             writable: true,
@@ -219,22 +253,6 @@ var Emit;
                         p.then(null, notify);
                     })
                 };
-            }
-        },
-        value: {
-            writable: true,
-            value: function value(v) {
-                return this.promise(Promise.resolve(v)).resolved;
-            }
-        },
-        collection: {
-            writable: true,
-            value: function collection(emitters) {
-                return Emit.create(function (notify) {
-                    emitters.forEach(function (emitter) {
-                        emitter.forEach(notify);
-                    });
-                });
             }
         }
     });

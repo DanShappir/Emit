@@ -45,11 +45,12 @@
 
         var result = document.getElementById('result');
 
-        Emit.value(0).combine(inputs).map(function (ns) {
-            return ns.reduce(function (r, n) { return r + n; }, 0);
-        }).forEach(function (n) {
-            result.value = n;
-        });
+        Emit.combine(inputs)
+            .map(function (ns) {
+                return ns.reduce(function (r, n) { return r + n; }, 0);
+            }).forEach(function (n) {
+                result.value = n;
+            });
     </script>
 </body>
 </html>
