@@ -77,20 +77,14 @@ var Emit;
             filter: function filter(filter) {
                 return this.match(filter).resolved;
             },
-            map: function map(callback, fixer) {
-                callback || (callback = function (v) { return v; });
-                fixer || (fixer = function (e) { throw e; });
+            map: function map(callback) {
                 return Emit.create(function (notify, rethrow) {
                     pump(function* () {
-                        try {
-                            while (true) {
-                                notify(callback(yield));
-                            }
-                        } catch (e) {
+                        while (true) {
                             try {
-                                notify(fixer(e));
-                            } catch (ee) {
-                                rethrow(ee);
+                                notify(callback(yield));
+                            } catch (e) {
+                                rethrow(e)
                             }
                         }
                     });
