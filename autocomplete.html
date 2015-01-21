@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>Emit Autocomplete</title>
+    <style>
+        input, output {
+            width: 8em;
+        }
+        span {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h2>Emit Autocomplete</h2>
+
+    <label>Wikipedia Query</label>
+    <br>
+    <input type="text">
+    <br>
+
+    <ul></ul>
+    <span></span>
+
+    <script src="https://code.jquery.com/jquery-2.1.3.min.js"></script>
+    <script src="js/emit.js"></script>
+    <script>
+        'use strict';
+
+        function searchWikipedia(term) {
+            var cleanTerm = encodeURIComponent(term);
+            var url = 'http://en.wikipedia.org/w/api.php?action=opensearch&format=json&search=' + cleanTerm + '&callback=?';
+            return $.getJSON(url);
+        }
+
+        var input = $('input')[0];
+        var results = $('ul');
+        var error = $('span');
+
+        Emit.events('keyup', input)
+            .map(function (e) {
+                return e.target.value; // Project the text from the input
+            })
+            .filter(function (text) {
+                return text.length > 2; // Only if the text is longer than 2 characters
+            })
+            .throttle(750 /* Pause for 750ms */ )
+            .distinct()
+            .map(searchWikipedia)
+            .then(function (data) {
+                results.empty();
+                data[1].map(function (result) {
+                    $('<li>' + result + '</li>').appendTo(results);
+                });
+                error.empty();
+            }, function (e) {
+                results.empty();
+                error.text(e.statusText);
+            });
+    </script>
+</body>
+</html>
