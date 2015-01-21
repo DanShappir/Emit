@@ -190,7 +190,11 @@ var Emit;
             writable: true,
             value: function value(v) {
                 return Emit.create(function (notify) {
-                    async(notify.bind(null, v));
+                    if (v && typeof v.then === 'function') {
+                        v.then(notify, rethrow);
+                    } else {
+                        async(notify.bind(null, v));
+                    }
                 });
             }
         },
@@ -281,14 +285,6 @@ var Emit;
                     id = window.setInterval.apply(window, [notify].concat(args));
                 }, function () {
                     window.clearInterval(id);
-                });
-            }
-        },
-        promise: {
-            writable: true,
-            value: function promise(p) {
-                return Emit.create(function (notify, rethrow) {
-                    p.then(notify, rethrow);
                 });
             }
         }
