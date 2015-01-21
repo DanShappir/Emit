@@ -20,20 +20,32 @@ var Emit;
                 if (r.done && typeof done === 'function') {
                     done(notify);
                 }
+            }, function exception(e) {
+                iterator.throw(e);
             });
             iterator.next();
+        }
+
+        function forEach(callback, report) {
+            callback || (callback = noop);
+            report || (report = function (e) { throw e; });
+            pump(function* () {
+                try {
+                    while (true) {
+                        callback(yield);
+                    }
+                } catch (e) {
+                    report(e);
+                }
+            });
+            return this;
         }
 
         return {
             isEmitter: true,
 
-            forEach: function forEach(callback) {
-                pump(function* () {
-                    while (true) {
-                        callback(yield);
-                    }
-                });
-            },
+            forEach: forEach,
+            then: forEach,
             match: function match(filter) {
                 var callback = toFilter(filter);
                 var resolved = noop;
@@ -57,10 +69,14 @@ var Emit;
                 return this.match(filter).resolved;
             },
             map: function map(callback) {
-                return Emit.create(function (notify) {
+                return Emit.create(function (notify, rethrow) {
                     pump(function* () {
-                        while (true) {
-                            notify(callback(yield));
+                        try {
+                            while (true) {
+                                notify(callback(yield));
+                            }
+                        } catch (e) {
+                            rethrow(e);
                         }
                     });
                 });
@@ -78,40 +94,45 @@ var Emit;
                 } else {
                     callback = toFilter(filter);
                 }
-                return Emit.create(function (notify) {
+                return Emit.create(function (notify, rethrow) {
                     pump(function* () {
-                        while (true) {
-                            var v = yield;
-                            if (callback(v)) {
-                                break;
+                        try {
+                            while (true) {
+                                var v = yield;
+                                if (callback(v)) {
+                                    break;
+                                }
+                                notify(v);
                             }
-                            notify(v);
+                        } catch (e) {
+                            rethrow(e);
                         }
                     });
                 });
             },
             head: function head(number) {
                 number = typeof number === 'undefined' ? 1 : Number(number);
-                return Emit.create(function (notify) {
+                return Emit.create(function (notify, rethrow) {
                     pump(function* () {
-                        for (var i = 0; i < number; ++i) {
-                            notify(yield);
+                        try {
+                            for (var i = 0; i < number; ++i) {
+                                notify(yield);
+                            }
+                        } catch (e) {
+                            rethrow(e);
                         }
                     });
                 });
             },
-            promise: function promise(fail) {
-                return new Promise(function (resolve, reject) {
-                    pump(function* () {
-                        (fail ? reject : resolve)(yield);
-                    });
-                });
-            },
             delay: function delay(duration) {
-                return Emit.create(function (notify) {
+                return Emit.create(function (notify, rethrow) {
                     pump(function* () {
-                        while (true) {
-                            setTimeout(notify.bind(null, yield), duration);
+                        try {
+                            while (true) {
+                                setTimeout(notify.bind(null, yield), duration);
+                            }
+                        } catch (e) {
+                            rethrow(e);
                         }
                     });
                 });
@@ -127,7 +148,7 @@ var Emit;
             return done;
         }
 
-        return Emit.create(function (notify) {
+        return Emit.create(function (notify, rethrow) {
             var values = emitters.map(function () { return undefined; });
             var states = emitters.map(function () { return false; });
             function update(index, value) {
@@ -138,7 +159,7 @@ var Emit;
                 }
             }
             emitters.forEach(function (emitter, index) {
-                emitter.until(isDone).forEach(update.bind(null, index));
+                emitter.until(isDone).forEach(update.bind(null, index), rethrow);
             });
         }, function () {
             done = true;
@@ -161,8 +182,14 @@ var Emit;
         sequence: {
             writable: true,
             value: function sequence(s) {
-                return Emit.create(function (notify) {
-                    async(s.forEach.bind(s, notify));
+                return Emit.create(function (notify, rethrow) {
+                    async(function () {
+                        try {
+                            s.forEach(notify);
+                        } catch (e) {
+                            rethrow(e);
+                        }
+                    });
                 });
             }
         },
@@ -170,9 +197,9 @@ var Emit;
             writable: true,
             value: function merge() {
                 var emitters = arguments.length === 1 ? arguments[0] : Array.prototype.slice.call(arguments, 0);
-                return Emit.create(function (notify) {
+                return Emit.create(function (notify, rethrow) {
                     emitters.forEach(function (emitter) {
-                        Emit.sequence(emitter).forEach(notify);
+                        Emit.sequence(emitter).forEach(notify, rethrow);
                     });
                 });
             }
@@ -245,14 +272,9 @@ var Emit;
         promise: {
             writable: true,
             value: function promise(p) {
-                return {
-                    resolved: Emit.create(function (notify) {
-                        p.then(notify);
-                    }),
-                    rejected: Emit.create(function (notify) {
-                        p.then(null, notify);
-                    })
-                };
+                return Emit.create(function (notify, rethrow) {
+                    p.then(notify, rethrow);
+                });
             }
         }
     });
