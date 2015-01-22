@@ -1,5 +1,5 @@
 # Emit
-Emit is a light-weight, Open Source library for Reactive programming using JavaScript. Emit utilizes ECMAScript 6 (ES6) generators and iterators for implementing observable sequences. As a result, Emit is very concise, and easily extensible. Emit provides various operators for the observable sequences, modeled after array iteration methods. This makes it easy to use, in a way that will be familiar to most JavaScript developers.
+Emit is a light-weight, Open Source library for [Reactive Programming](https://gist.github.com/staltz/868e7e9bc2a7b8c1f754) using JavaScript. Emit utilizes ECMAScript 6 (ES6) generators and iterators for implementing observable sequences. As a result, Emit is very concise, and easily extensible. Emit provides various operators for the observable sequences, modeled after array iteration methods. This makes it easy to use, in a way that will be familiar to most JavaScript developers.
 
 ```javascript
 // Clock that updates every second, using Emit + jQuery
@@ -38,7 +38,7 @@ Create a new observable sequence from a data source, and returns that sequence. 
 2. done (optional) - will be invoked when the sequence should stop generating values, e.g. it's no longer observed or an error was signalled on it.
 
 ```javascript
-var interval = Emit.create((notify) => setInterval(notify, 1000)); // 
+var interval = Emit.create((notify) => setInterval(notify, 1000)); // notify every second
 ```
 
 ### Emit.value(v)
@@ -52,3 +52,12 @@ If the provided value is thenable then its success value will be pushed into the
 ```javascript
 Emit.value(Promise.resolve('tada')).forEach((v) => console.log(v)); // output tada
 ```
+
+### Emit.sequence(s)
+Create a new observable sequence which contains the elements of a sequence. A sequence is a collection that impelemnts *forEach*.
+
+**Note:** and observable sequence is itself a sequence, and can be used as an input for this function.
+
+**Note:* you can use the [Sequences library](https://github.com/DanShappir/Sequences) to provide *forEach* for any iteretable object/collection.
+
+### Emit.merge(s)
