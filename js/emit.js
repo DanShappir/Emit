@@ -245,15 +245,7 @@ var Emit;
         sequence: {
             writable: true,
             value: function sequence(s) {
-                return Emit.create(function (notify, rethrow) {
-                    async(function () {
-                        try {
-                            s.forEach(notify);
-                        } catch (e) {
-                            rethrow(e);
-                        }
-                    });
-                });
+                return Emit.merge([s]);
             }
         },
         merge: {
@@ -261,8 +253,14 @@ var Emit;
             value: function merge() {
                 var emitters = arguments.length === 1 ? arguments[0] : Array.prototype.slice.call(arguments, 0);
                 return Emit.create(function (notify, rethrow) {
-                    emitters.forEach(function (emitter) {
-                        Emit.sequence(emitter).forEach(notify, rethrow);
+                    async(function () {
+                        try {
+                            emitters.forEach(function (emitter) {
+                                emitter.forEach(notify, rethrow);
+                            });
+                        } catch (e) {
+                            rethrow(e);
+                        }
                     });
                 });
             }
