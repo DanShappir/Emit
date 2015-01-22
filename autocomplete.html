@@ -34,11 +34,11 @@
             return $.getJSON(url);
         }
 
-        var input = $('input')[0];
-        var results = $('ul');
-        var error = $('span');
+        var $input = $('input');
+        var $results = $('ul');
+        var $error = $('span');
 
-        Emit.events('keyup', input)
+        Emit.events('keyup', $input)
             .map(function (e) {
                 return e.target.value; // Project the text from the input
             })
@@ -49,14 +49,14 @@
             .distinct()
             .map(searchWikipedia)
             .then(function (data) {
-                results.empty();
+                $results.empty();
                 data[1].map(function (result) {
-                    $('<li>' + result + '</li>').appendTo(results);
+                    $('<li>' + result + '</li>').appendTo($results);
                 });
-                error.empty();
+                $error.empty();
             }, function (e) {
-                results.empty();
-                error.text(e.statusText);
+                $results.empty();
+                $error.text(e.statusText);
             });
     </script>
 </body>

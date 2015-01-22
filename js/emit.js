@@ -55,36 +55,39 @@ var Emit;
 
             forEach: forEach,
             then: forEach,
-            match: function match(filter) {
-                var callback = toFilter(filter);
-                var resolved = noop;
-                var resolvedRethrow = noop;
-                var rejected = noop;
-                var rejectedRethrow = noop;
+            match: function match(matchers) {
                 pump(function* () {
                     try {
                         while (true) {
                             var v = yield;
-                            (callback(v) ? resolved : rejected)(v);
+                            matchers.some(function (matcher) {
+                                if (matcher.match(v)) {
+                                    if (typeof matcher.next === 'function') {
+                                        matcher.next(v);
+                                    }
+                                    return true;
+                                }
+                            });
                         }
                     } catch (e) {
-                        resolvedRethrow(e);
-                        rejectedRethrow(e);
+                        matchers.forEach(function (matcher) {
+                            if (typeof  matcher.throw === 'function') {
+                                matcher.throw(e);
+                            }
+                        });
                     }
                 });
-                return {
-                    resolved: Emit.create(function (notify, rethrow) {
-                        resolved = notify;
-                        resolvedRethrow = rethrow;
-                    }),
-                    rejected: Emit.create(function (notify, rethrow) {
-                        rejected = notify;
-                        rejectedRethrow = rethrow;
-                    })
-                };
+                return this;
             },
             filter: function filter(filter) {
-                return this.match(filter).resolved;
+                var match = this.match;
+                return Emit.create(function (notify, rethrow) {
+                    match([{
+                        match: filter,
+                        next: notify,
+                        'throw': rethrow
+                    }]);
+                });
             },
             map: function map(callback) {
                 return Emit.create(function (notify, rethrow) {
@@ -297,9 +300,17 @@ var Emit;
             writable: true,
             value: function events(type, element) {
                 return Emit.create(function (notify) {
-                    element.addEventListener(type, notify, false);
+                    if (typeof element.on === 'function') {
+                        element.on(type, notify);
+                    } else {
+                        element.addEventListener(type, notify, false);
+                    }
                 }, function (notify) {
-                    element.removeEventListener(type, notify, false);
+                    if (typeof element.off === 'function') {
+                        element.off(type, notify);
+                    } else {
+                        element.removeEventListener(type, notify, false);
+                    }
                 });
             }
         },
