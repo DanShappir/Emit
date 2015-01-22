@@ -60,4 +60,9 @@ Create a new observable sequence which contains the elements of a sequence. A se
 
 **Note:* you can use the [Sequences library](https://github.com/DanShappir/Sequences) to provide *forEach* for any iteretable object/collection.
 
-### Emit.merge(s)
+### Emit.merge([s1, s2, ...]|s1, s2, ...)
+Given a sequence of sequences as a single argument, or multiple sequences as several arguments, creates a new observable sequence which contains the elements of all these sequences. No order is guaranteed between the emitted elements.
+
+### Emi.sync()
+
+### Emi.combine()
