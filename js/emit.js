@@ -35,168 +35,150 @@ var Emit;
             iterator.next();
         }
 
-        function forEach(callback, report) {
-            callback || (callback = noop);
-            report || (report = function (e) { throw e; });
-            pump(function* () {
-                try {
-                    while (true) {
-                        callback(yield);
-                    }
-                } catch (e) {
-                    report(e);
+
+
+        return Object.create(Emit.prototype, {
+            forEach: {
+                value: function forEach(callback, report) {
+                    callback || (callback = noop);
+                    report || (report = function (e) { throw e; });
+                    pump(function* () {
+                        try {
+                            while (true) {
+                                callback(yield);
+                            }
+                        } catch (e) {
+                            report(e);
+                        }
+                    });
+                    return this;
                 }
-            });
-            return this;
-        }
-
-        return {
-            isEmitter: true,
-
-            forEach: forEach,
-            then: forEach,
-            match: function match(matchers) {
-                pump(function* () {
-                    try {
-                        while (true) {
-                            var v = yield;
-                            matchers.some(function (matcher) {
-                                if (matcher.match(v)) {
-                                    if (typeof matcher.next === 'function') {
-                                        matcher.next(v);
+            },
+            match: {
+                value: function match(matchers) {
+                    pump(function* () {
+                        try {
+                            while (true) {
+                                var v = yield;
+                                matchers.some(function (matcher) {
+                                    if (matcher.match(v)) {
+                                        if (typeof matcher.next === 'function') {
+                                            matcher.next(v);
+                                        }
+                                        return true;
                                     }
-                                    return true;
+                                });
+                            }
+                        } catch (e) {
+                            matchers.forEach(function (matcher) {
+                                if (typeof  matcher.throw === 'function') {
+                                    matcher.throw(e);
                                 }
                             });
                         }
-                    } catch (e) {
-                        matchers.forEach(function (matcher) {
-                            if (typeof  matcher.throw === 'function') {
-                                matcher.throw(e);
+                    });
+                    return this;
+                }
+            },
+            map: {
+                value: function map(callback) {
+                    return Emit.create(function (notify, rethrow) {
+                        pump(function* () {
+                            try {
+                                var stop = false;
+                                var prev = Promise.resolve();
+                                while (true) {
+                                    var v = yield;
+                                    if (stop) {
+                                        break;
+                                    }
+                                    v = callback(v);
+                                    if (isThenable(v)) {
+                                        prev = Promise.all([prev, v]);
+                                        prev.then(function (vs) {
+                                            notify(vs[1]);
+                                        }, function (e) {
+                                            stop = true;
+                                            rethrow(e);
+                                        });
+                                    } else {
+                                        notify(v);
+                                    }
+                                }
+                            } catch (e) {
+                                rethrow(e);
                             }
                         });
-                    }
-                });
-                return this;
-            },
-            filter: function filter(filter) {
-                var match = this.match;
-                return Emit.create(function (notify, rethrow) {
-                    match([{
-                        match: filter,
-                        next: notify,
-                        'throw': rethrow
-                    }]);
-                });
-            },
-            map: function map(callback) {
-                return Emit.create(function (notify, rethrow) {
-                    pump(function* () {
-                        try {
-                            var stop = false;
-                            var prev = Promise.resolve();
-                            while (true) {
-                                var v = yield;
-                                if (stop) {
-                                    break;
-                                }
-                                v = callback(v);
-                                if (isThenable(v)) {
-                                    prev = Promise.all([prev, v]);
-                                    prev.then(function (vs) {
-                                        notify(vs[1]);
-                                    }, function (e) {
-                                        stop = true;
-                                        rethrow(e);
-                                    });
-                                } else {
-                                    notify(v);
-                                }
-                            }
-                        } catch (e) {
-                            rethrow(e);
-                        }
                     });
-                });
-            },
-            until: function until(filter) {
-                var callback;
-                if (filter.isEmitter) {
-                    var finished = false;
-                    filter.head().forEach(function () {
-                        finished = true;
-                    });
-                    callback = function () {
-                        return finished;
-                    };
-                } else {
-                    callback = toFilter(filter);
                 }
-                return Emit.create(function (notify, rethrow) {
-                    pump(function* () {
-                        try {
-                            while (true) {
-                                var v = yield;
-                                if (callback(v)) {
-                                    break;
-                                }
-                                notify(v);
-                            }
-                        } catch (e) {
-                            rethrow(e);
-                        }
-                    });
-                });
             },
-            head: function head(number) {
-                number = typeof number === 'undefined' ? 1 : Number(number);
-                return Emit.create(function (notify, rethrow) {
-                    pump(function* () {
-                        try {
-                            for (var i = 0; i < number; ++i) {
-                                notify(yield);
-                            }
-                        } catch (e) {
-                            rethrow(e);
-                        }
-                    });
-                });
-            },
-            delay: function delay(duration) {
-                return Emit.create(function (notify, rethrow) {
-                    pump(function* () {
-                        try {
-                            while (true) {
-                                setTimeout(notify.bind(null, yield), duration);
-                            }
-                        } catch (e) {
-                            rethrow(e);
-                        }
-                    });
-                });
-            },
-            distinct: function distinct() {
-                return Emit.create(function (notify, rethrow) {
-                    pump(function* () {
-                        var prev;
-                        try {
-                            while (true) {
-                                var v = yield;
-                                if (v !== prev) {
-                                    prev = v;
+            until: {
+                value: function until(filter) {
+                    var callback;
+                    if (filter.isEmitter) {
+                        var finished = false;
+                        filter.head().forEach(function () {
+                            finished = true;
+                        });
+                        callback = function () {
+                            return finished;
+                        };
+                    } else {
+                        callback = toFilter(filter);
+                    }
+                    return Emit.create(function (notify, rethrow) {
+                        pump(function* () {
+                            try {
+                                while (true) {
+                                    var v = yield;
+                                    if (callback(v)) {
+                                        break;
+                                    }
                                     notify(v);
                                 }
+                            } catch (e) {
+                                rethrow(e);
                             }
-                        } catch (e) {
-                            rethrow(e)
-                        }
+                        });
                     });
-                });
+                }
             },
-            throttle: function throttle(duration) {
-                return Emit.sync(this, Emit.interval(duration)).map(function (vs) { return vs[0]; });
+            delay: {
+                value: function delay(duration) {
+                    return Emit.create(function (notify, rethrow) {
+                        pump(function* () {
+                            try {
+                                while (true) {
+                                    setTimeout(notify.bind(null, yield), duration);
+                                }
+                            } catch (e) {
+                                rethrow(e);
+                            }
+                        });
+                    });
+                }
+            },
+            distinct: {
+                value: function distinct() {
+                    return Emit.create(function (notify, rethrow) {
+                        pump(function* () {
+                            var prev;
+                            try {
+                                while (true) {
+                                    var v = yield;
+                                    if (v !== prev) {
+                                        prev = v;
+                                        notify(v);
+                                    }
+                                }
+                            } catch (e) {
+                                rethrow(e)
+                            }
+                        });
+                    });
+                }
             }
-        };
+        });
     }
 
     function join(args, isReady) {
@@ -226,6 +208,32 @@ var Emit;
     }
 
     Object.defineProperties(Emit, {
+        prototype: {
+            value: {
+                isEmitter: true,
+                then: function then() {
+                    return this.forEach.apply(this, arguments);
+                },
+                filter: function filter(filter) {
+                    var match = this.match;
+                    return Emit.create(function (notify, rethrow) {
+                        match([{
+                            match: filter,
+                            next: notify,
+                            'throw': rethrow
+                        }]);
+                    });
+                },
+                head: function head(number) {
+                    number = typeof number === 'undefined' ? 1 : Number(number);
+                    var counter = 0;
+                    return this.until(function () { return ++counter > number; });
+                },
+                throttle: function throttle(duration) {
+                    return Emit.sync(this, Emit.interval(duration)).map(function (vs) { return vs[0]; });
+                }
+            }
+        },
         create: {
             writable: true,
             value: create
