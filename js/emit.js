@@ -11,6 +11,9 @@ var Emit;
     function isThenable(v) {
         return v && typeof v.then === 'function';
     }
+    function isSequence(v) {
+        return v && typeof v.forEach === 'function';
+    }
 
     function create(source, done) {
         var toFilter = typeof Sequences !== 'undefined' ?
@@ -34,8 +37,6 @@ var Emit;
             });
             iterator.next();
         }
-
-
 
         return Object.create(Emit.prototype, {
             forEach: {
@@ -177,6 +178,29 @@ var Emit;
                         });
                     });
                 }
+            },
+            flatten: {
+                value: function flatten() {
+                    return Emit.create(function (notify, rethrow) {
+                        pump(function* () {
+                            function flat(v) {
+                                if (isSequence(v)) {
+                                    v.forEach(flat);
+                                } else {
+                                    notify(v);
+                                }
+                            }
+
+                            try {
+                                while (true) {
+                                    flat(yield);
+                                }
+                            } catch (e) {
+                                rethrow(e)
+                            }
+                        });
+                    });
+                }
             }
         });
     }
@@ -211,10 +235,10 @@ var Emit;
         prototype: {
             value: {
                 isEmitter: true,
-                then: function then() {
+                then: function () {
                     return this.forEach.apply(this, arguments);
                 },
-                filter: function filter(filter) {
+                filter: function (filter) {
                     var match = this.match;
                     return Emit.create(function (notify, rethrow) {
                         match([{
@@ -224,12 +248,12 @@ var Emit;
                         }]);
                     });
                 },
-                head: function head(number) {
+                head: function (number) {
                     number = typeof number === 'undefined' ? 1 : Number(number);
                     var counter = 0;
                     return this.until(function () { return ++counter > number; });
                 },
-                throttle: function throttle(duration) {
+                throttle: function (duration) {
                     return Emit.sync(this, Emit.interval(duration)).map(function (vs) { return vs[0]; });
                 }
             }
@@ -264,7 +288,11 @@ var Emit;
                     async(function () {
                         try {
                             emitters.forEach(function (emitter) {
-                                emitter.forEach(notify, rethrow);
+                                if (isSequence(emitter)) {
+                                    emitter.forEach(notify, rethrow);
+                                } else {
+                                    notify(emitter);
+                                }
                             });
                         } catch (e) {
                             rethrow(e);
