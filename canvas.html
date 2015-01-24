@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="utf-8">
+    <title>Emit drawn on canvas</title>
+    <style>
+        canvas {
+            background-color: #cccccb;
+        }
+        html  {
+            -moz-user-select: none;
+            -khtml-user-select: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+    </style>
+</head>
+<body>
+    <h2>Emit drawn on canvas</h2>
+    <canvas width="640" height="480"></canvas>
+
+    <script src="js/emit.js"></script>
+    <script>
+        'use strict';
+
+        // Calculate offset either layerX/Y or offsetX/Y
+        function getOffset(event) {
+            return {
+                offsetX: event.offsetX === undefined ? event.layerX : event.offsetX,
+                offsetY: event.offsetY === undefined ? event.layerY : event.offsetY
+            };
+        }
+
+        var canvas = document.querySelector('canvas');
+        var ctx = canvas.getContext('2d');
+        ctx.beginPath();
+
+        var mouseButton = Emit.merge(Emit.events('mousedown', canvas).map(true),
+            Emit.events('mouseup', canvas).map(false));
+
+        Emit.events('mousemove', canvas)
+            .buffer(2, 1)
+            .map(function(x) {
+                return { first: getOffset(x[0]), second: getOffset(x[1]) };
+            })
+            .filter(mouseButton)
+            .forEach(function (x) {
+                ctx.moveTo(x.first.offsetX, x.first.offsetY);
+                ctx.lineTo(x.second.offsetX, x.second.offsetY);
+                ctx.stroke();
+            });
+    </script>
+</body>
+</html>

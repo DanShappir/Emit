@@ -4,6 +4,8 @@ var Emit;
 
     function noop() {};
 
+    var slice = Array.prototype.slice;
+
     function async(callback) {
         Promise.resolve().then(callback);
     }
@@ -82,7 +84,10 @@ var Emit;
                 }
             },
             map: {
-                value: function map(callback) {
+                value: function map(selector) {
+                    var callback = typeof selector === 'function' ?
+                        selector :
+                        function () { return selector; };
                     return Emit.create(function (notify, rethrow) {
                         pump(function* () {
                             try {
@@ -115,18 +120,7 @@ var Emit;
             },
             until: {
                 value: function until(filter) {
-                    var callback;
-                    if (filter.isEmitter) {
-                        var finished = false;
-                        filter.head().forEach(function () {
-                            finished = true;
-                        });
-                        callback = function () {
-                            return finished;
-                        };
-                    } else {
-                        callback = toFilter(filter);
-                    }
+                    var callback = filter.isEmitter ? filter.didEmit() : toFilter(filter);
                     return Emit.create(function (notify, rethrow) {
                         pump(function* () {
                             try {
@@ -201,12 +195,56 @@ var Emit;
                         });
                     });
                 }
+            },
+            reduce: {
+                value: function reduce(accumulator, seed) {
+                    return Emit.create(function (notify, rethrow) {
+                        pump(function* () {
+                            try {
+                                var result = seed;
+                                while (true) {
+                                    result = accumulator(result, yield);
+                                    notify(result);
+                                }
+                            } catch (e) {
+                                rethrow(e);
+                            }
+                        });
+                    });
+                }
+            },
+            buffer: {
+                value: function buffer(until, overlap) {
+                    var callback = typeof until === 'number' ?
+                        function (v, storage) { return storage.length >= until; } :
+                        until.isEmitter ?
+                            until.didEmit() :
+                            toFilter(until);
+                    overlap || (overlap = 0);
+                    return Emit.create(function (notify, rethrow) {
+                        pump(function* () {
+                            try {
+                                var storage = [];
+                                while (true) {
+                                    var v = yield;
+                                    var length = storage.push(v);
+                                    if (callback(v, storage)) {
+                                        notify(storage);
+                                        storage = storage.slice(overlap >= 0 ? length - overlap : -overlap);
+                                    }
+                                }
+                            } catch (e) {
+                                rethrow(e);
+                            }
+                        });
+                    });
+                }
             }
         });
     }
 
     function join(args, isReady) {
-        var emitters = args.length === 1 ? args[0] : Array.prototype.slice.call(args, 0);
+        var emitters = args.length === 1 ? args[0] : slice.call(args, 0);
         var done = false;
 
         function isDone() {
@@ -242,7 +280,7 @@ var Emit;
                     var match = this.match;
                     return Emit.create(function (notify, rethrow) {
                         match([{
-                            match: filter,
+                            match: filter.isEmitter ? filter.latest() : filter,
                             next: notify,
                             'throw': rethrow
                         }]);
@@ -252,6 +290,21 @@ var Emit;
                     number = typeof number === 'undefined' ? 1 : Number(number);
                     var counter = 0;
                     return this.until(function () { return ++counter > number; });
+                },
+                didEmit: function () {
+                    var result = false;
+                    this.forEach(function () { result = true; });
+                    return function () {
+                        var r = result;
+                        result = false;
+                        return r;
+                    };
+                },
+                latest: function (result) {
+                    this.forEach(function (v) { result = v; });
+                    return function () {
+                        return result;
+                    };
                 },
                 throttle: function (duration) {
                     return Emit.sync(this, Emit.interval(duration)).map(function (vs) { return vs[0]; });
@@ -283,7 +336,7 @@ var Emit;
         merge: {
             writable: true,
             value: function merge() {
-                var emitters = arguments.length === 1 ? arguments[0] : Array.prototype.slice.call(arguments, 0);
+                var emitters = arguments.length === 1 ? arguments[0] : slice.call(arguments, 0);
                 return Emit.create(function (notify, rethrow) {
                     async(function () {
                         try {
@@ -365,7 +418,7 @@ var Emit;
         interval: {
             writable: true,
             value: function interval() {
-                var args = Array.prototype.slice.call(arguments, 0);
+                var args = slice.call(arguments, 0);
                 var id;
                 return Emit.create(function (notify) {
                     id = window.setInterval.apply(window, [notify].concat(args));
