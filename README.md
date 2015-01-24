@@ -20,6 +20,7 @@ Simply use [Bower](http://bower.io/):
 In addition to the examples included in this repository, there are several online:
 
 * [Sum numeirc fields at JSFiddle](http://jsfiddle.net/dansh/zLocda7m/)
+* [Draw on canvas at JSFiddle](http://jsfiddle.net/dansh/s9znhzzq/)
 * [Wikipedia autocomplete at JSFiddle](http://jsfiddle.net/dansh/kb1da60L/)
 * [Time flies like an arrow at JSFiddle](http://jsfiddle.net/dansh/qchopp1g/)
 
