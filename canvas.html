@@ -43,12 +43,12 @@
         Emit.events('mousemove', canvas)
             .buffer(2, 1)
             .map(function(x) {
-                return { first: getOffset(x[0]), second: getOffset(x[1]) };
+                return x.map(getOffset);
             })
             .filter(mouseButton)
             .forEach(function (x) {
-                ctx.moveTo(x.first.offsetX, x.first.offsetY);
-                ctx.lineTo(x.second.offsetX, x.second.offsetY);
+                ctx.moveTo(x[0].offsetX, x[0].offsetY);
+                ctx.lineTo(x[1].offsetX, x[1].offsetY);
                 ctx.stroke();
             });
     </script>
