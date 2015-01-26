@@ -28,8 +28,8 @@
         // Calculate offset either layerX/Y or offsetX/Y
         function getOffset(event) {
             return {
-                offsetX: event.offsetX === undefined ? event.layerX : event.offsetX,
-                offsetY: event.offsetY === undefined ? event.layerY : event.offsetY
+                offsetX: event.offsetX === undefined ? event.layerX - event.target.offsetLeft : event.offsetX,
+                offsetY: event.offsetY === undefined ? event.layerY - event.target.offsetTop : event.offsetY
             };
         }
 

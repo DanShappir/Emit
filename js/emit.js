@@ -108,7 +108,7 @@ var Emit;
                         var match = this.match.bind(this);
                         return Emit.create(function (notify, rethrow) {
                             match([{
-                                match: filter.isEmitter ? filter.latest() : filter,
+                                match: filter.isEmitter ? filter.latest : toFilter(filter),
                                 next: notify,
                                 'throw': rethrow
                             }]);
@@ -155,7 +155,7 @@ var Emit;
                 until: {
                     writable: true,
                     value: function (filter) {
-                        var callback = filter.isEmitter ? filter.didEmit() : toFilter(filter);
+                        var callback = filter.isEmitter ? filter.didEmit : toFilter(filter);
                         var pump = this._pump;
                         return Emit.create(function (notify, rethrow) {
                             pump(function* () {
@@ -271,7 +271,7 @@ var Emit;
                         var callback = typeof until === 'number' ?
                             function (v, storage) { return storage.length >= until; } :
                             until.isEmitter ?
-                                until.didEmit() :
+                                until.didEmit :
                                 toFilter(until);
                         overlap || (overlap = 0);
                         var pump = this._pump;
@@ -295,8 +295,7 @@ var Emit;
                     }
                 },
                 didEmit: {
-                    writable: true,
-                    value: function () {
+                    get: function () {
                         var result = false;
                         this.forEach(function () { result = true; });
                         return function () {
@@ -307,8 +306,7 @@ var Emit;
                     }
                 },
                 latest: {
-                    writable: true,
-                    value: function (result) {
+                    get: function (result) {
                         this.forEach(function (v) { result = v; });
                         return function () {
                             return result;
