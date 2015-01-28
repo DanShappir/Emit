@@ -453,7 +453,10 @@ var Emit;
                 var args = slice.call(arguments, 0);
                 var id;
                 return Emit.create(function (notify) {
-                    id = window.setInterval.apply(window, [notify].concat(args));
+                    function callback() {
+                        notify(arguments.length <= 1 ? arguments[0] : slice.call(arguments, 0));
+                    }
+                    id = window.setInterval.apply(window, [callback].concat(args));
                 }, function () {
                     window.clearInterval(id);
                 });
