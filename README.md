@@ -106,3 +106,38 @@ Creates an observable sequence that emits a new timestamp to it for every animat
 
 ### Emit.interval(delay[, param1, param2, ...])
 Creates an observable sequence that emits every *delay* period of milliseconds, using setInterval. When the events are no longer needed, the event handler will be automatically detached. If extra parameters are passed in, then the emited element will be an array containing these parameters.
+
+## Observable Sequence Methods
+
+### .isEmitter
+
+### .forEach(callback[, report])
+
+### .then(callback[, report])
+An alias for *forEach*, this method makes observable sequence thenable.
+
+### .match([m1, m2, ...]|m1, m2, ...)
+
+### .filter(filterExpression)
+
+### .map(selector)
+
+### .until(filterExpression)
+
+### .head(number)
+
+### .delay(duration)
+
+### .distinct()
+
+### .flatten()
+
+### .reduce(accumulator[, seed])
+
+### .buffer(until[, overlap])
+
+### .didEmit
+
+### .latest
+
+### .throttle(duration)
