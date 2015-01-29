@@ -47,7 +47,7 @@
 
         Emit.combine(inputs)
             .map(function (ns) {
-                return ns.accumulate(function (r, n) { return r + n; }, 0);
+                return ns.reduce(function (r, n) { return r + n; }, 0);
             }).forEach(function (n) {
                 result.value = n;
             });

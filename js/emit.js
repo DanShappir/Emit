@@ -60,12 +60,12 @@ var Emit;
                         this._pump(function* () {
                             try {
                                 while (true) {
-                                    callback(yield);
+                                    callback(yield, this);
                                 }
                             } catch (e) {
-                                report(e);
+                                report(e, this);
                             }
-                        });
+                        }.bind(this));
                         return this;
                     }
                 },
@@ -83,9 +83,9 @@ var Emit;
                                 while (true) {
                                     var v = yield;
                                     matchers.some(function (matcher) {
-                                        if (matcher.match(v)) {
+                                        if (matcher.match(v, this)) {
                                             if (typeof matcher.next === 'function') {
-                                                matcher.next(v);
+                                                matcher.next(v, this);
                                             }
                                             return true;
                                         }
@@ -94,11 +94,11 @@ var Emit;
                             } catch (e) {
                                 matchers.forEach(function (matcher) {
                                     if (typeof  matcher.throw === 'function') {
-                                        matcher.throw(e);
+                                        matcher.throw(e, this);
                                     }
                                 });
                             }
-                        });
+                        }.bind(this));
                         return this;
                     }
                 },
@@ -132,7 +132,7 @@ var Emit;
                                         if (stop) {
                                             break;
                                         }
-                                        v = callback(v);
+                                        v = callback(v, this);
                                         if (isThenable(v)) {
                                             prev = Promise.all([prev, v]);
                                             prev.then(function (vs) {
@@ -148,7 +148,7 @@ var Emit;
                                 } catch (e) {
                                     rethrow(e);
                                 }
-                            });
+                            }.bind(this));
                         });
                     }
                 },
@@ -162,7 +162,7 @@ var Emit;
                                 try {
                                     while (true) {
                                         var v = yield;
-                                        if (callback(v)) {
+                                        if (callback(v, this)) {
                                             break;
                                         }
                                         notify(v);
@@ -170,7 +170,7 @@ var Emit;
                                 } catch (e) {
                                     rethrow(e);
                                 }
-                            });
+                            }.bind(this));
                         });
                     }
                 },
@@ -255,13 +255,13 @@ var Emit;
                                 try {
                                     var result = seed;
                                     while (true) {
-                                        result = accumulator(result, yield);
+                                        result = accumulator(result, yield, this);
                                         notify(result);
                                     }
                                 } catch (e) {
                                     rethrow(e);
                                 }
-                            });
+                            }.bind(this));
                         });
                     }
                 },
@@ -282,7 +282,7 @@ var Emit;
                                     while (true) {
                                         var v = yield;
                                         var length = storage.push(v);
-                                        if (callback(v, storage)) {
+                                        if (callback(v, storage, this)) {
                                             notify(storage);
                                             storage = storage.slice(overlap >= 0 ? length - overlap : -overlap);
                                         }
@@ -290,7 +290,7 @@ var Emit;
                                 } catch (e) {
                                     rethrow(e);
                                 }
-                            });
+                            }.bind(this));
                         });
                     }
                 },
