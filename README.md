@@ -110,13 +110,18 @@ Creates an observable sequence that emits every *delay* period of milliseconds, 
 ## Observable Sequence Methods
 
 ### .isEmitter
+Read only boolean field that contains the value *true*. Provides an easy method to check if a given object is an Emit observable sequence.
 
 ### .forEach(callback[, report])
+Executes the function specified as callback for every element emitted on the observable sequence. The *callback* function is invoked with two arguments: the emitted value, and a referrence to the observable sequence. An optional *report* function can be specified, which will catch exceptions thrown on the observable sequence. If specified, *report* will be invoked with two arguments: the thrown value, and a referrence to the observable sequence.
+
+The *forEach* method returns a referrence to the observable sequence so that it can be chained.
 
 ### .then(callback[, report])
-An alias for *forEach*, this method makes observable sequence thenable.
+An alias for *forEach*, this method makes observable sequences thenable.
 
 ### .match([m1, m2, ...]|m1, m2, ...)
+Splits an observable sequence between multiple handlers based on matching functions.
 
 ### .filter(filterExpression)
 
