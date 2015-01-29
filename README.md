@@ -7,7 +7,7 @@ Emit.interval(1000).map(() => (new Date).toLocaleTimeString()).forEach((t) => $c
 ```
 Emit works well with most any JavaScript library, for example jQuery. In addition, Emit works with and leverages Promises, as well as any other thenable object.  Because Emit is small and simple to use, it provides an easy way to start leveraging the benefits of Reactive programming in your JavaScript applications today.
 
-Emit is compatible with the released versions of Chrome, Firefox and Opera.
+Emit is compatible with the released versions of Chrome, Firefox and Opera. Note that the included code snippets utilize the arrow function notation, which is currently only supported by Firefox.
 
 ## Installation
 Simply use [Bower](http://bower.io/):
@@ -117,11 +117,18 @@ Executes the function specified as callback for every element emitted on the obs
 
 The *forEach* method returns a referrence to the observable sequence so that it can be chained.
 
+```javascript
+// Outputs 1, 2, 3, ... one number each second
+Emit.interval(1000).accumulate((r) => r + 1, 0).forEach((v) => console.log(v));
+```
+
 ### .then(callback[, report])
 An alias for *forEach*, this method makes observable sequences thenable.
 
 ### .match([m1, m2, ...]|m1, m2, ...)
-Splits an observable sequence between multiple handlers based on matching functions.
+Splits an observable sequence between multiple handlers based on matching functions. Each matcher is represnted by an object that must implement a *match* member function. This function scans the provided matchers in order, and utilize the first matcher for which the *match* member function returns a truthy value.
+
+In addition 
 
 ### .filter(filterExpression)
 
