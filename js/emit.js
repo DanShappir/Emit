@@ -246,7 +246,7 @@ var Emit;
                         });
                     }
                 },
-                reduce: {
+                accumulate: {
                     writable: true,
                     value: function (accumulator, seed) {
                         var pump = this._pump;
