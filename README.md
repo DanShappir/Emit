@@ -128,7 +128,11 @@ An alias for *forEach*, this method makes observable sequences thenable.
 ### .match([m1, m2, ...]|m1, m2, ...)
 Splits an observable sequence between multiple handlers based on matching functions. Each matcher is represnted by an object that must implement a *match* member function. This function scans the provided matchers in order, and utilize the first matcher for which the *match* member function returns a truthy value.
 
-In addition 
+To handle value, matcher needs to implement iterator-like interface, consisting of the methods *mext* and *throw*. After a match, the *next* method is invoked, with the matched value as the first argument and a referrence to the observable sequence  as the second argument. If the matcher doesn't implement *next* then the value is discarded.
+
+If an error is thrown on the original observable sequence, it is passed to **all** the matchers that implement the *throw* method, with the observable sequence  as the second argument.
+
+Note that if an array of matchers is passed, it is possible to modify the array - add or remove matchers from it - after the call to *match*.
 
 ### .filter(filterExpression)
 
