@@ -137,7 +137,7 @@ Note that if an array of matchers is passed, it is possible to modify the array 
 ### .filter(filterExpression)
 Given an observable sequence, retain only those values for which the specified *filterExpression* returns a truethy value. If *filterExpression* is a function, that function is called with the element to evaluate as the first argument, and a referrence to the observable sequence  as the second argument. If *filterExpression* is itself an observable sequence, filtering is performed based on the last element it emitted. If that element had a truethy value, the elements are retained, otherwise they are discared.
 
-If the **Sequences** library is available, [Sequences.toFilter(https://github.com/DanShappir/Sequences#sequencestofiltervalue) is applied to the *filterExpression*, enabling advanced filtering.
+If the **Sequences** library is available, [Sequences.toFilter](https://github.com/DanShappir/Sequences#sequencestofiltervalue) is applied to the *filterExpression*, enabling advanced filtering.
 
 ```javascript
 // Outputs 2, 4, 6, ... one number each second
