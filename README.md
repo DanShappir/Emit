@@ -128,15 +128,31 @@ An alias for *forEach*, this method makes observable sequences thenable.
 ### .match([m1, m2, ...]|m1, m2, ...)
 Splits an observable sequence between multiple handlers based on matching functions. Each matcher is represnted by an object that must implement a *match* member function. This function scans the provided matchers in order, and utilize the first matcher for which the *match* member function returns a truthy value.
 
-To handle value, matcher needs to implement iterator-like interface, consisting of the methods *mext* and *throw*. After a match, the *next* method is invoked, with the matched value as the first argument and a referrence to the observable sequence  as the second argument. If the matcher doesn't implement *next* then the value is discarded.
+To handle value, matcher needs to implement iterator-like interface, consisting of the methods *mext* and *throw*. After a match, the *next* method is invoked, with the matched element as the first argument and a referrence to the observable sequence  as the second argument. If the matcher doesn't implement *next* then the element is discarded.
 
 If an error is thrown on the original observable sequence, it is passed to **all** the matchers that implement the *throw* method, with the observable sequence  as the second argument.
 
 Note that if an array of matchers is passed, it is possible to modify the array - add or remove matchers from it - after the call to *match*.
 
 ### .filter(filterExpression)
+Given an observable sequence, retain only those values for which the specified *filterExpression* returns a truethy value. If *filterExpression* is a function, that function is called with the element to evaluate as the first argument, and a referrence to the observable sequence  as the second argument. If *filterExpression* is itself an observable sequence, filtering is performed based on the last element it emitted. If that element had a truethy value, the elements are retained, otherwise they are discared.
+
+If the **Sequences** library is available, [Sequences.toFilter(https://github.com/DanShappir/Sequences#sequencestofiltervalue) is applied to the *filterExpression*, enabling advanced filtering.
+
+```javascript
+// Outputs 2, 4, 6, ... one number each second
+Emit.interval(1000).accumulate((r) => r + 1, 0).filter((v) => v % 2 === 0)forEach((v) => console.log(v));
+```
 
 ### .map(selector)
+Given an observable sequence, transform its elements by applying a mapping function, specified as the *selector*, to each element. If *selector* is a value instead of a function, all elements are transformed to that value.
+
+If a function specified as returns a thenable object, *selector*, the output observable sequence will contain the result of the thenable object. Order is automatically maintained between thenable objects. If such a thenable object fails, an exception will be thrown on the output observable sequence.
+
+```javascript
+// Display tag name of HTML element user clicks on
+Emit.events('click', window).map((ev) => ev.target).forEach((el) => console.log(el.tagName));
+```
 
 ### .until(filterExpression)
 
