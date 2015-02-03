@@ -373,27 +373,31 @@ var Emit;
                 var done = false;
                 var _notify = noop;
                 var _rethrow = noop;
-                var result = Emit.create(function (notify, rethrow) {
+                return Object.defineProperties(Emit.create(function (notify, rethrow) {
                     _notify = notify;
                     _rethrow = rethrow;
                 }, function () {
                     done = true;
+                }), {
+                    next: {
+                        value: function next(v) {
+                            if (!done) {
+                                _notify.apply(this, arguments);
+                            }
+                            return {
+                                value: v,
+                                done: done
+                            }
+                        }
+                    },
+                    throw: {
+                        value: function () {
+                            if (!done) {
+                                _rethrow.apply(this, arguments);
+                            }
+                        }
+                    }
                 });
-                result.next = function (v) {
-                    if (!done) {
-                        _notify.apply(this, arguments);
-                    }
-                    return {
-                        value: v,
-                        done: done
-                    }
-                };
-                result.throw = function () {
-                    if (!done) {
-                        _rethrow.apply(this, arguments);
-                    }
-                };
-                return result;
             }
         },
         value: {
