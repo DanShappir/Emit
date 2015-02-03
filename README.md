@@ -63,6 +63,14 @@ Create a new observable sequence which contains the elements of a sequence. A se
 
 **Note:* you can use the [Sequences library](https://github.com/DanShappir/Sequences) to provide *forEach* for any iteretable object/collection.
 
+### Emit.inject()
+Create a new observable sequence into which values can be explicitly injected. The returned observable sequence also implements the iterator interface: *next* and *throw*. To inject a value into the observable sequence, call *next* and provide the value as the argument. To signal an error on the sequence, call *throw* and provide the error object.
+
+```javascript
+var seq = Emit.inject().forEach((v) => console.log(v));
+seq.next(42); // Outputs 42
+```
+
 ### Emit.merge([s1, s2, ...]|s1, s2, ...)
 Given a sequence of sequences as a single argument, or multiple sequences as several arguments, creates a new observable sequence which contains the elements of all these sequences. No order is guaranteed between the emitted elements, instead new elements are added to the output observable sequence as soon as they arrive on the input sequence.
 
@@ -83,7 +91,7 @@ If any one of the input sequences throws an exception, that exception will be re
 var seq = Emit.sync(Emit.interval(1000), Emit.interval(500));
 ```
 
-### Emi.combine()
+### Emit.combine([s1, s2, ...]|s1, s2, ...)
 Given a sequence of sequences as a single argument, or multiple sequences as several arguments, creates a new observable sequence which contains arrays as elements. Each such array contains elements from the input sequences, in order. The output is a combination of all the inputs. This means a new elements will be emitted every time one of the input seqeunces provides a new element. As a result, if one input sequence emits fewer elements than the other sequences, at least some of its elements will be resued in multiple outputs.
 
 If any one of the input sequences throws an exception, that exception will be rethrown into the output observable sequence.
@@ -155,6 +163,14 @@ Emit.events('click', window).map((ev) => ev.target).forEach((el) => console.log(
 ```
 
 ### .until(filterExpression)
+Given an observable sequence, passes its elements until the function specified by *filterExpression* returns a truthy value. The function is invoked with two arguments: the current element, and a referrence to the sequence itself. If *filterExpression* is itself an observable sequence, *until* passes elements until *filterExpression* emits an element (regardless of its value).
+
+If the **Sequences** library is available, [Sequences.toFilter](https://github.com/DanShappir/Sequences#sequencestofiltervalue) is applied to the *filterExpression*, enabling advanced filtering.
+
+```javascript
+// Outputs 1, 2, 3 one number each second, and then stops
+Emit.interval(1000).accumulate((r) => r + 1, 0).until((v) => v >= 3)forEach((v) => console.log(v));
+```
 
 ### .head(number)
 
