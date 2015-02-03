@@ -66,6 +66,8 @@ Create a new observable sequence which contains the elements of a sequence. A se
 ### Emit.inject()
 Create a new observable sequence into which values can be explicitly injected. The returned observable sequence also implements the iterator interface: *next* and *throw*. To inject a value into the observable sequence, call *next* and provide the value as the argument. To signal an error on the sequence, call *throw* and provide the error object.
 
+The *next* method returns an object that has a *value* property equal to the value passed to *next*, and a *done* property that is *true* is the observable sequence is no longer accepting elements, and *false* otherwise.
+
 ```javascript
 var seq = Emit.inject().forEach((v) => console.log(v));
 seq.next(42); // Outputs 42
