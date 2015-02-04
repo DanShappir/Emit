@@ -15,16 +15,13 @@ var Emit;
         var result = Number(arg);
         return isNaN(result) ? def : result;
     }
-    function multiArgs(args) {
-        return args.length === 1 ? args[0] : slice.call(args, 0);
-    }
 
     var toFilter = typeof Sequences !== 'undefined' ?
         Sequences.toFilter :
         function (f) { return f; };
 
     function join(args, isReady) {
-        var emitters = multiArgs(args);
+        var emitters = slice.call(args, 0);
         var done = false;
 
         function isDone() {
@@ -52,9 +49,6 @@ var Emit;
     Object.defineProperties(Emit, {
         prototype: {
             value: Object.create(Object.getPrototypeOf({}), {
-                isEmitter: {
-                    value: true
-                },
                 forEach: {
                     writable: true,
                     value: function (callback, report) {
@@ -70,12 +64,6 @@ var Emit;
                             }
                         }.bind(this));
                         return this;
-                    }
-                },
-                then: {
-                    writable: true,
-                    value: function () {
-                        return this.forEach.apply(this, arguments);
                     }
                 },
                 match: {
@@ -112,7 +100,7 @@ var Emit;
                         var matcher;
                         return Emit.create(function (notify, rethrow) {
                             matcher = [{
-                                match: filter.isEmitter ? filter.latest : toFilter(filter),
+                                match: Emit.isEmitter(filter) ? filter.latest : toFilter(filter),
                                 next: notify,
                                 'throw': rethrow
                             }];
@@ -161,7 +149,7 @@ var Emit;
                 until: {
                     writable: true,
                     value: function (filter) {
-                        var callback = filter.isEmitter ? filter.didEmit : toFilter(filter);
+                        var callback = Emit.isEmitter(filter) ? filter.didEmit : toFilter(filter);
                         var pump = this._pump;
                         return Emit.create(function (notify, rethrow) {
                             pump(function* () {
@@ -248,15 +236,20 @@ var Emit;
                                 try {
                                     while (proceed) {
                                         var v = yield;
-                                        if (isSequence(v)) {
+                                        if (!isSequence(v)) {
+                                            notify(v);
+                                        } else {
                                             v.forEach(depth === 0 ?
                                                 notify :
-                                                function (x) {
-                                                    (x.isEmitter ? x : Emit.value(x))
-                                                        .flatten(depth - 1).forEach(notify);
+                                                function (a) {
+                                                    var emitter = Emit.isEmitter(a) ? a : Emit.value(a);
+                                                    emitter
+                                                        .flatten(depth - 1)
+                                                        .until(function (b) {
+                                                            notify(b);
+                                                            return !proceed;
+                                                        }).forEach(noop);
                                                 });
-                                        } else {
-                                            notify(v);
                                         }
                                     }
                                 } catch (e) {
@@ -295,7 +288,7 @@ var Emit;
                     value: function (until, overlap) {
                         var callback = typeof until === 'number' ?
                             function (v, storage) { return storage.length >= until; } :
-                            until.isEmitter ? until.didEmit : toFilter(until);
+                            Emit.isEmitter(until) ? until.didEmit : toFilter(until);
                         overlap || (overlap = 0);
                         var pump = this._pump;
                         var proceed = true;
@@ -347,6 +340,12 @@ var Emit;
                 }
             })
         },
+        isEmitter: {
+            writable: true,
+            value: function (x) {
+                return !!x && typeof x === 'object' && Object.getPrototypeOf(x) === Emit.prototype;
+            }
+        },
         create: {
             writable: true,
             value: function (source, done) {
@@ -377,7 +376,8 @@ var Emit;
             writable: true,
             value: function () {
                 var done = false;
-                var _notify, _rethrow;
+                var _notify = noop;
+                var _rethrow = noop;
                 return Object.defineProperties(Emit.create(function (notify, rethrow) {
                     _notify = notify;
                     _rethrow = rethrow;
@@ -413,7 +413,7 @@ var Emit;
         merge: {
             writable: true,
             value: function merge() {
-                return Emit.value(multiArgs(arguments)).flatten(1);
+                return Emit.value(slice.call(arguments, 0)).flatten(1);
             }
         },
         sync: {
