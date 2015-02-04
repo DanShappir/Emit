@@ -3,12 +3,7 @@ var Emit;
     'use strict';
 
     function noop() {};
-
     var slice = Array.prototype.slice;
-
-    function async(callback) {
-        Promise.resolve().then(callback);
-    }
 
     function hasMethod(name, obj) {
         return obj && typeof obj[name] === 'function';
@@ -60,7 +55,7 @@ var Emit;
                         this._pump(function* () {
                             try {
                                 while (true) {
-                                    callback(yield, this);
+                                    callback((yield), this);
                                 }
                             } catch (e) {
                                 report(e, this);
@@ -236,22 +231,28 @@ var Emit;
                 },
                 flatten: {
                     writable: true,
-                    value: function () {
+                    value: function (depth) {
+                        depth = Number(depth);
+                        if (isNaN(depth)) {
+                            depth = 0;
+                        }
                         var pump = this._pump;
                         var proceed = true;
                         return Emit.create(function (notify, rethrow) {
                             pump(function* () {
-                                function flat(v) {
-                                    if (isSequence(v)) {
-                                        v.forEach(flat);
-                                    } else {
-                                        notify(v);
-                                    }
-                                }
-
                                 try {
                                     while (proceed) {
-                                        flat(yield);
+                                        var v = yield;
+                                        if (isSequence(v)) {
+                                            v.forEach(depth === 0 ?
+                                                notify :
+                                                function (x) {
+                                                    (x.isEmitter ? x : Emit.value(x))
+                                                        .flatten(depth - 1).forEach(notify);
+                                                });
+                                        } else {
+                                            notify(v);
+                                        }
                                     }
                                 } catch (e) {
                                     rethrow(e)
@@ -403,40 +404,15 @@ var Emit;
         value: {
             writable: true,
             value: function value(v) {
-                return Emit.create(function (notify) {
-                    if (isThenable(v)) {
-                        v.then(notify, rethrow);
-                    } else {
-                        async(notify.bind(null, v));
-                    }
-                });
-            }
-        },
-        sequence: {
-            writable: true,
-            value: function sequence(s) {
-                return Emit.merge([s]);
+                var p = Promise.resolve(v);
+                return Emit.create(p.then.bind(p));
             }
         },
         merge: {
             writable: true,
             value: function merge() {
                 var emitters = arguments.length === 1 ? arguments[0] : slice.call(arguments, 0);
-                return Emit.create(function (notify, rethrow) {
-                    async(function () {
-                        try {
-                            emitters.forEach(function (emitter) {
-                                if (isSequence(emitter)) {
-                                    emitter.forEach(notify, rethrow);
-                                } else {
-                                    notify(emitter);
-                                }
-                            });
-                        } catch (e) {
-                            rethrow(e);
-                        }
-                    });
-                });
+                return Emit.value(emitters).flatten(1);
             }
         },
         sync: {
