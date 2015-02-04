@@ -11,12 +11,20 @@ var Emit;
     var isThenable = hasMethod.bind(null, 'then');
     var isSequence = hasMethod.bind(null, 'forEach');
 
+    function numericArg(arg, def) {
+        var result = Number(arg);
+        return isNaN(result) ? def : result;
+    }
+    function multiArgs(args) {
+        return args.length === 1 ? args[0] : slice.call(args, 0);
+    }
+
     var toFilter = typeof Sequences !== 'undefined' ?
         Sequences.toFilter :
         function (f) { return f; };
 
     function join(args, isReady) {
-        var emitters = args.length === 1 ? args[0] : slice.call(args, 0);
+        var emitters = multiArgs(args);
         var done = false;
 
         function isDone() {
@@ -175,7 +183,7 @@ var Emit;
                 head: {
                     writable: true,
                     value: function (number) {
-                        number = typeof number === 'undefined' ? 1 : Number(number);
+                        number = numericArg(number, 1);
                         var counter = 0;
                         return this.until(function () { return ++counter > number; });
                     }
@@ -232,10 +240,7 @@ var Emit;
                 flatten: {
                     writable: true,
                     value: function (depth) {
-                        depth = Number(depth);
-                        if (isNaN(depth)) {
-                            depth = 0;
-                        }
+                        depth = numericArg(depth, 0);
                         var pump = this._pump;
                         var proceed = true;
                         return Emit.create(function (notify, rethrow) {
@@ -273,7 +278,7 @@ var Emit;
                                 try {
                                     var result = seed;
                                     while (proceed) {
-                                        result = accumulator(result, yield, this);
+                                        result = accumulator(result, (yield), this);
                                         notify(result);
                                     }
                                 } catch (e) {
@@ -372,19 +377,18 @@ var Emit;
             writable: true,
             value: function () {
                 var done = false;
-                var _notify = noop;
-                var _rethrow = noop;
+                var _notify, _rethrow;
                 return Object.defineProperties(Emit.create(function (notify, rethrow) {
                     _notify = notify;
                     _rethrow = rethrow;
                 }, function () {
                     done = true;
+                    _notify = noop;
+                    _rethrow = noop;
                 }), {
                     next: {
                         value: function next(v) {
-                            if (!done) {
-                                _notify.apply(this, arguments);
-                            }
+                            _notify.apply(this, arguments);
                             return {
                                 value: v,
                                 done: done
@@ -393,9 +397,7 @@ var Emit;
                     },
                     throw: {
                         value: function () {
-                            if (!done) {
-                                _rethrow.apply(this, arguments);
-                            }
+                            _rethrow.apply(this, arguments);
                         }
                     }
                 });
@@ -411,8 +413,7 @@ var Emit;
         merge: {
             writable: true,
             value: function merge() {
-                var emitters = arguments.length === 1 ? arguments[0] : slice.call(arguments, 0);
-                return Emit.value(emitters).flatten(1);
+                return Emit.value(multiArgs(arguments)).flatten(1);
             }
         },
         sync: {
@@ -471,9 +472,7 @@ var Emit;
                         notify(timestamp);
                         id = window.requestAnimationFrame(raf);
                     });
-                }, function () {
-                    window.cancelAnimationFrame(id);
-                });
+                }, window.cancelAnimationFrame.bind(window, id));
             }
         },
         interval: {
@@ -486,9 +485,7 @@ var Emit;
                         notify(arguments.length <= 1 ? arguments[0] : slice.call(arguments, 0));
                     }
                     id = window.setInterval.apply(window, [callback].concat(args));
-                }, function () {
-                    window.clearInterval(id);
-                });
+                }, window.clearInterval.bind(window, id));
             }
         }
     });
