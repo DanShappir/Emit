@@ -49,7 +49,7 @@
             };
         });
 
-        Emit.merge(text.split('').map(function (letter, i) {
+        Emit.merge.apply(Emit, text.split('').map(function (letter, i) {
             // Add an element for each letter
             var s = document.createElement('span');
             s.innerHTML = letter;

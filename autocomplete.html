@@ -48,7 +48,7 @@
             .throttle(750 /* Pause for 750ms */ )
             .distinct()
             .map(searchWikipedia)
-            .then(function (data) {
+            .forEach(function (data) {
                 $results.empty();
                 data[1].map(function (result) {
                     $('<li>' + result + '</li>').appendTo($results);
