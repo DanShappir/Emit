@@ -28,14 +28,14 @@ var Emit;
             return done;
         }
 
-        return Emit.create(function (notify, rethrow) {
+        return Emit.create(function (next, rethrow) {
             var values = emitters.map(function () { return undefined; });
             var states = emitters.map(function () { return false; });
             function update(index, value) {
                 values[index] = value;
                 states[index] = true;
                 if (isReady(states)) {
-                    notify(values.slice(0));
+                    next(values.slice(0));
                 }
             }
             emitters.forEach(function (emitter, index) {
@@ -98,10 +98,10 @@ var Emit;
                     value: function (filter) {
                         var match = this.match.bind(this);
                         var matcher;
-                        return Emit.create(function (notify, rethrow) {
+                        return Emit.create(function (next, rethrow) {
                             matcher = [{
                                 match: Emit.isEmitter(filter) ? filter.latest : toFilter(filter),
-                                next: notify,
+                                next: next,
                                 'throw': rethrow
                             }];
                             match(matcher);
@@ -118,7 +118,7 @@ var Emit;
                             function () { return selector; };
                         var pump = this._pump;
                         var proceed = true;
-                        return Emit.create(function (notify, rethrow) {
+                        return Emit.create(function (next, rethrow) {
                             pump(function* () {
                                 try {
                                     var prev = Promise.resolve();
@@ -128,13 +128,13 @@ var Emit;
                                         if (isThenable(v)) {
                                             prev = Promise.all([prev, v]);
                                             prev.then(function (vs) {
-                                                notify(vs[1]);
+                                                next(vs[1]);
                                             }, function (e) {
                                                 proceed = false;
                                                 rethrow(e);
                                             });
                                         } else {
-                                            notify(v);
+                                            next(v);
                                         }
                                     }
                                 } catch (e) {
@@ -151,7 +151,7 @@ var Emit;
                     value: function (filter) {
                         var callback = Emit.isEmitter(filter) ? filter.didEmit : toFilter(filter);
                         var pump = this._pump;
-                        return Emit.create(function (notify, rethrow) {
+                        return Emit.create(function (next, rethrow) {
                             pump(function* () {
                                 try {
                                     while (true) {
@@ -159,7 +159,7 @@ var Emit;
                                         if (callback(v, this)) {
                                             break;
                                         }
-                                        notify(v);
+                                        next(v);
                                     }
                                 } catch (e) {
                                     rethrow(e);
@@ -181,13 +181,13 @@ var Emit;
                     value: function (duration) {
                         var pump = this._pump;
                         var proceed = true;
-                        return Emit.create(function (notify, rethrow) {
+                        return Emit.create(function (next, rethrow) {
                             pump(function* () {
                                 try {
                                     while (proceed) {
                                         setTimeout(function () {
                                             if (proceed) {
-                                                notify(this);
+                                                next(this);
                                             }
                                         }.bind(yield), duration);
                                     }
@@ -205,7 +205,7 @@ var Emit;
                     value: function () {
                         var pump = this._pump;
                         var proceed = true;
-                        return Emit.create(function (notify, rethrow) {
+                        return Emit.create(function (next, rethrow) {
                             pump(function* () {
                                 var prev;
                                 try {
@@ -213,7 +213,7 @@ var Emit;
                                         var v = yield;
                                         if (v !== prev) {
                                             prev = v;
-                                            notify(v);
+                                            next(v);
                                         }
                                     }
                                 } catch (e) {
@@ -231,22 +231,22 @@ var Emit;
                         depth = numericArg(depth, 0);
                         var pump = this._pump;
                         var proceed = true;
-                        return Emit.create(function (notify, rethrow) {
+                        return Emit.create(function (next, rethrow) {
                             pump(function* () {
                                 try {
                                     while (proceed) {
                                         var v = yield;
                                         if (!isSequence(v)) {
-                                            notify(v);
+                                            next(v);
                                         } else {
                                             v.forEach(depth === 0 ?
-                                                notify :
+                                                next :
                                                 function (a) {
                                                     var emitter = Emit.isEmitter(a) ? a : Emit.value(a);
                                                     emitter
                                                         .flatten(depth - 1)
                                                         .until(function (b) {
-                                                            notify(b);
+                                                            next(b);
                                                             return !proceed;
                                                         }).forEach(noop);
                                                 });
@@ -266,13 +266,13 @@ var Emit;
                     value: function (accumulator, seed) {
                         var pump = this._pump;
                         var proceed = true;
-                        return Emit.create(function (notify, rethrow) {
+                        return Emit.create(function (next, rethrow) {
                             pump(function* () {
                                 try {
                                     var result = seed;
                                     while (proceed) {
                                         result = accumulator(result, (yield), this);
-                                        notify(result);
+                                        next(result);
                                     }
                                 } catch (e) {
                                     rethrow(e);
@@ -292,7 +292,7 @@ var Emit;
                         overlap || (overlap = 0);
                         var pump = this._pump;
                         var proceed = true;
-                        return Emit.create(function (notify, rethrow) {
+                        return Emit.create(function (next, rethrow) {
                             pump(function* () {
                                 try {
                                     var storage = [];
@@ -300,7 +300,7 @@ var Emit;
                                         var v = yield;
                                         var length = storage.push(v);
                                         if (callback(v, storage, this)) {
-                                            notify(storage);
+                                            next(storage);
                                             storage = storage.slice(overlap >= 0 ? length - overlap : -overlap);
                                         }
                                     }
@@ -354,19 +354,13 @@ var Emit;
                     _pump: {
                         value: function pump(generator) {
                             var iterator = generator();
-
-                            function notify(v) {
-                                var r = iterator.next(v);
-                                if (r.done) {
-                                    done(notify);
-                                }
-                            }
-
-                            source(notify, function exception(e) {
-                                iterator.throw(e);
-                                done(notify);
-                            });
                             iterator.next();
+                            source(function next(v) {
+                                var r = iterator.next(v);
+                                    if (r.done) {
+                                        done();
+                                    }
+                                }, iterator.throw.bind(iterator));
                         }
                     }
                 });
@@ -378,8 +372,8 @@ var Emit;
                 var done = false;
                 var _notify = noop;
                 var _rethrow = noop;
-                return Object.defineProperties(Emit.create(function (notify, rethrow) {
-                    _notify = notify;
+                return Object.defineProperties(Emit.create(function (next, rethrow) {
+                    _notify = next;
                     _rethrow = rethrow;
                 }, function () {
                     done = true;
@@ -448,17 +442,21 @@ var Emit;
         events: {
             writable: true,
             value: function events(type, element) {
-                return Emit.create(function (notify) {
+                var handler;
+                return Emit.create(function (next) {
+                    handler = function (ev) {
+                        next(ev);
+                    };
                     if (typeof element.on === 'function') {
-                        element.on(type, notify);
+                        element.on(type, handler);
                     } else {
-                        element.addEventListener(type, notify, false);
+                        element.addEventListener(type, handler, false);
                     }
-                }, function (notify) {
+                }, function () {
                     if (typeof element.off === 'function') {
-                        element.off(type, notify);
+                        element.off(type, handler);
                     } else {
-                        element.removeEventListener(type, notify, false);
+                        element.removeEventListener(type, handler, false);
                     }
                 });
             }
@@ -467,9 +465,9 @@ var Emit;
             writable: true,
             value: function animationFrames() {
                 var id;
-                return Emit.create(function (notify) {
+                return Emit.create(function (next) {
                     id = window.requestAnimationFrame(function raf(timestamp) {
-                        notify(timestamp);
+                        next(timestamp);
                         id = window.requestAnimationFrame(raf);
                     });
                 }, window.cancelAnimationFrame.bind(window, id));
@@ -480,9 +478,9 @@ var Emit;
             value: function interval() {
                 var args = slice.call(arguments, 0);
                 var id;
-                return Emit.create(function (notify) {
+                return Emit.create(function (next) {
                     function callback() {
-                        notify(arguments.length <= 1 ? arguments[0] : slice.call(arguments, 0));
+                        next(arguments.length <= 1 ? arguments[0] : slice.call(arguments, 0));
                     }
                     id = window.setInterval.apply(window, [callback].concat(args));
                 }, window.clearInterval.bind(window, id));
