@@ -363,6 +363,7 @@ var Emit;
                                     if (r.done) {
                                         done();
                                     }
+                                    return !r.done;
                                 }, iterator.throw.bind(iterator));
                         }
                     }
@@ -373,19 +374,19 @@ var Emit;
             writable: true,
             value: function () {
                 var done = false;
-                var _notify = noop;
+                var _next = noop;
                 var _rethrow = noop;
                 return Object.defineProperties(Emit.create(function (next, rethrow) {
-                    _notify = next;
+                    _next = next;
                     _rethrow = rethrow;
                 }, function () {
                     done = true;
-                    _notify = noop;
+                    _next = noop;
                     _rethrow = noop;
                 }), {
                     next: {
                         value: function next(v) {
-                            _notify.apply(this, arguments);
+                            _next(v);
                             return {
                                 value: v,
                                 done: done
@@ -393,8 +394,8 @@ var Emit;
                         }
                     },
                     throw: {
-                        value: function () {
-                            _rethrow.apply(this, arguments);
+                        value: function (e) {
+                            _rethrow(e);
                         }
                     }
                 });
