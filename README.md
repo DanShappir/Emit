@@ -1,5 +1,5 @@
 # Emit
-Emit is a light-weight, Open Source library for [Reactive Programming](https://gist.github.com/staltz/868e7e9bc2a7b8c1f754) using JavaScript. Emit utilizes ECMAScript 6 (ES6) generators and iterators for implementing observable sequences. As a result, Emit is very concise, and easily extensible. Emit provides various operators for the observable sequences, modeled after array iteration methods. This makes it easy to use, in a way that will be familiar to most JavaScript developers.
+Emit is a light-weight, Open Source library for [Reactive Programmingg](https://gist.github.com/staltz/868e7e9bc2a7b8c1f754) using JavaScript. Emit utilizes ECMAScript 6 (ES6) generators and iterators for implementing observable sequences. As a result, Emit is very concise, and easily extensible. Emit provides various operators for the observable sequences, modeled after array iteration methods. This makes it easy to use, in a way that will be familiar to most JavaScript developers.
 
 ```javascript
 // Clock that updates every second, using Emit + jQuery
@@ -14,7 +14,7 @@ Simply use [Bower](http://bower.io/):
 
 1. Install Bower: *npm install -g bower*
 2. Install the package: *bower install Emit*
-3. Referrence the file: *bower_components/Emit/js/emit.js*
+3. Reference the file: *bower_components/Emit/js/emit.js*
  
 ## Examples
 In addition to the examples included in this repository, there are several online:
@@ -40,15 +40,15 @@ Returns *true* if param is an observable sequence. Returns *false* otherwise.
 ### Emit.create(source[,done])
 Create a new observable sequence from a data source, and returns that sequence. The function accepts two functions:
 
-1. source - called immediatly with two arguments: *notify* and *rethrow*. Invoke *notify* with a value to push that value into the sequence. Invoke *rethrow* with an error object to signal an error on the sequence.
-2. done (optional) - will be invoked when the sequence should stop generating values, e.g. it's no longer observed or an error was signalled on it.
+1. source - called immediately with two arguments: *notify* and *rethrow*. Invoke *notify* with a value to push that value into the sequence. Invoke *rethrow* with an error object to signal an error on the sequence.
+2. done (optional) - will be invoked when the sequence should stop generating values, e.g. it's no longer observed or an error was signaled on it.
 
 ```javascript
 var interval = Emit.create((notify) => setInterval(notify, 1000)); // notify every second
 ```
 
 ### Emit.value(v)
-Create a new observable sequence which contains a single value. Note that this is a **hot** observable, which means the value will be emitted asynchrounsly, as soon as possible.
+Create a new observable sequence which contains a single value. Note that this is a **hot** observable, which means the value will be emitted asynchronously, as soon as possible.
 
 ```javascript
 Emit.value(42).forEach((v) => console.log(v)); // output 42
@@ -59,8 +59,8 @@ If the provided value is thenable (has a *then* method) then its success value w
 Emit.value(Promise.resolve('tada')).forEach((v) => console.log(v)); // output tada
 ```
 
-### Emit.inject()
-Create a new observable sequence into which values can be explicitly injected. The returned observable sequence also implements the iterator interface: *next* and *throw*. To inject a value into the observable sequence, call *next* and provide the value as the argument. To signal an error on the sequence, call *throw* and provide the error object.
+### Emit.iter()
+Create a new observable sequence that also implement the ES6 iterator interface: *next* and *throw*. To emit values on this observable sequence, invoke *next* with the values as arguments. To signal an error on the sequence, call *throw* and provide the error object.
 
 The *next* method returns an object that has a *value* property equal to the value passed to *next*, and a *done* property that is *true* is the observable sequence is no longer accepting elements, and *false* otherwise.
 
@@ -69,8 +69,8 @@ var seq = Emit.inject().forEach((v) => console.log(v));
 seq.next(42); // Outputs 42
 ```
 
-### Emit.merge(s1, s2, ...)
-Given one or more observable sequences, creates a new observable sequence which contains the elements of all these sequences. No order is guaranteed between the emitted elements, instead new elements are added to the output observable sequence as soon as they arrive on the input sequence.
+### Emit.merge([s1, s2, ...] | s1, s2, ...)
+Given a single argument containing an array of more observable sequences, or multiple observable sequences as distinct arguments, creates a new observable sequence which contains the elements of all these sequences. No order is guaranteed between the emitted elements, instead new elements are added to the output observable sequence as soon as they arrive on the input sequence.
 
 If any one of the input sequences throws an exception, that exception will be rethrown into the output observable sequence.
 
@@ -79,8 +79,8 @@ If any one of the input sequences throws an exception, that exception will be re
 var mouseButton = Emit.merge(Emit.events('mousedown', canvas).map(true), Emit.events('mouseup', canvas).map(false));
 ```
 
-### Emi.sync(s1, s2, ...)
-Given one or more observable sequences, creates a new observable sequence which contains arrays as elements. Each such array contains elements from the input sequences, in order. The output is synchronized with all the input. This means a new elements will be emitted only after all the input sequences have provided new elements. As a result, if one input sequence emits two or more elements before the other sequences emit, only its last element will be used, and the others will be discarded.
+### Emi.sync([s1, s2, ...] | s1, s2, ...)
+Given a single argument containing an array of more observable sequences, or multiple observable sequences as distinct arguments, creates a new observable sequence which contains arrays as elements. Each such array contains elements from the input sequences, in order. The output is synchronized with all the input. This means a new elements will be emitted only after all the input sequences have provided new elements. As a result, if one input sequence emits two or more elements before the other sequences emit, only its last element will be used, and the others will be discarded.
 
 If any one of the input sequences throws an exception, that exception will be rethrown into the output observable sequence.
 
@@ -89,8 +89,8 @@ If any one of the input sequences throws an exception, that exception will be re
 var seq = Emit.sync(Emit.interval(1000), Emit.interval(500));
 ```
 
-### Emit.combine(s1, s2, ...)
-Given one or more observable sequences, creates a new observable sequence which contains arrays as elements. Each such array contains elements from the input sequences, in order. The output is a combination of all the inputs. This means a new elements will be emitted every time one of the input seqeunces provides a new element. As a result, if one input sequence emits fewer elements than the other sequences, at least some of its elements will be resued in multiple outputs.
+### Emit.combine([s1, s2, ...] | s1, s2, ...)
+Given a single argument containing an array of more observable sequences, or multiple observable sequences as distinct arguments, creates a new observable sequence which contains arrays as elements. Each such array contains elements from the input sequences, in order. The output is a combination of all the inputs. This means a new elements will be emitted every time one of the input sequences provides a new element. As a result, if one input sequence emits fewer elements than the other sequences, at least some of its elements will be reused in multiple outputs.
 
 If any one of the input sequences throws an exception, that exception will be rethrown into the output observable sequence.
 
@@ -108,17 +108,17 @@ var move = Emit.events('mousemove', window).until(Emit.events('mouseup', window)
 ```
 
 ### Emit.animationFrames()
-Creates an observable sequence that emits a new timestamp to it for every animation frame event. When the events are no longer needed, the event handler will be automatically detached.
+Creates an observable sequence that emits a new time-stamp to it for every animation frame event. When the events are no longer needed, the event handler will be automatically detached.
 
 ### Emit.interval(delay[, param1, param2, ...])
-Creates an observable sequence that emits every *delay* period of milliseconds, using setInterval. When the events are no longer needed, the event handler will be automatically detached. If extra parameters are passed in, then the emited element will be an array containing these parameters.
+Creates an observable sequence that emits every *delay* period of milliseconds, using setInterval. When the events are no longer needed, the event handler will be automatically detached. If extra parameters are passed in, then the emitted element will be an array containing these parameters.
 
 ## Observable Sequence Methods
 
 ### .forEach(callback[, report])
-Executes the function specified as callback for every element emitted on the observable sequence. The *callback* function is invoked with two arguments: the emitted value, and a referrence to the observable sequence. An optional *report* function can be specified, which will catch exceptions thrown on the observable sequence. If specified, *report* will be invoked with two arguments: the thrown value, and a referrence to the observable sequence.
+Executes the function specified as callback for every element emitted on the observable sequence. The *callback* function is invoked with two arguments: the emitted value, and a reference to the observable sequence. An optional *report* function can be specified, which will catch exceptions thrown on the observable sequence. If specified, *report* will be invoked with two arguments: the thrown value, and a reference to the observable sequence.
 
-The *forEach* method returns a referrence to the observable sequence so that it can be chained.
+The *forEach* method returns a reference to the observable sequence so that it can be chained.
 
 ```javascript
 // Outputs 1, 2, 3, ... one number each second
@@ -128,14 +128,14 @@ Emit.interval(1000).accumulate((r) => r + 1, 0).forEach((v) => console.log(v));
 ### .match(matchers)
 Splits an observable sequence between multiple handlers based on matching functions. The argument is an array of objects, which must implement a *match* member function. This method scans the provided matchers in order, and utilize the first matcher for which the *match* member function returns a truthy value.
 
-To handle value, matcher needs to implement iterator-like interface, consisting of the methods *mext* and *throw*. After a match, the *next* method is invoked, with the matched element as the first argument and a referrence to the observable sequence  as the second argument. If the matcher doesn't implement *next* then the element is discarded.
+To handle value, matcher needs to implement iterator-like interface, consisting of the methods *next* and *throw*. After a match, the *next* method is invoked, with the matched element as the first argument and a reference to the observable sequence  as the second argument. If the matcher doesn't implement *next* then the element is discarded.
 
 If an error is thrown on the original observable sequence, it is passed to **all** the matchers that implement the *throw* method, with the observable sequence  as the second argument.
 
 Note that if an array of matchers is passed, it is possible to modify the array - add or remove matchers from it - after the call to *match*.
 
 ### .filter(filterExpression)
-Given an observable sequence, retain only those values for which the specified *filterExpression* returns a truethy value. If *filterExpression* is a function, that function is called with the element to evaluate as the first argument, and a referrence to the observable sequence  as the second argument. If *filterExpression* is itself an observable sequence, filtering is performed based on the last element it emitted. If that element had a truethy value, the elements are retained, otherwise they are discared.
+Given an observable sequence, retain only those values for which the specified *filterExpression* returns a truthy value. If *filterExpression* is a function, that function is called with the element to evaluate as the first argument, and a reference to the observable sequence  as the second argument. If *filterExpression* is itself an observable sequence, filtering is performed based on the last element it emitted. If that element had a truthy value, the elements are retained, otherwise they are discard.
 
 If the **Sequences** library is available, [Sequences.toFilter](https://github.com/DanShappir/Sequences#sequencestofiltervalue) is applied to the *filterExpression*, enabling advanced filtering.
 
@@ -155,7 +155,7 @@ Emit.events('click', window).map((ev) => ev.target).forEach((el) => console.log(
 ```
 
 ### .until(filterExpression)
-Given an observable sequence, passes its elements until the function specified by *filterExpression* returns a truthy value. The function is invoked with two arguments: the current element, and a referrence to the sequence itself. If *filterExpression* is itself an observable sequence, *until* passes elements until *filterExpression* emits an element (regardless of its value).
+Given an observable sequence, passes its elements until the function specified by *filterExpression* returns a truthy value. The function is invoked with two arguments: the current element, and a reference to the sequence itself. If *filterExpression* is itself an observable sequence, *until* passes elements until *filterExpression* emits an element (regardless of its value).
 
 If the **Sequences** library is available, [Sequences.toFilter](https://github.com/DanShappir/Sequences#sequencestofiltervalue) is applied to the *filterExpression*, enabling advanced filtering.
 
