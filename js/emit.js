@@ -15,13 +15,16 @@ var Emit;
         var result = Number(arg);
         return isNaN(result) ? def : result;
     }
+    function multiArgs(args) {
+        return args.length === 1 && Array.isArray(args[0]) ? args[0] : slice.call(args, 0);
+    }
 
     var toFilter = typeof Sequences !== 'undefined' ?
         Sequences.toFilter :
         function (f) { return f; };
 
     function join(args, isReady) {
-        var emitters = slice.call(args, 0);
+        var emitters = multiArgs(args);
         var done = false;
 
         function isDone() {
@@ -74,7 +77,7 @@ var Emit;
                                 while (matchers.length) {
                                     var v = yield;
                                     matchers.some(function (matcher) {
-                                        if (matcher.match(v, this)) {
+                                        if (matcher.test(v, this)) {
                                             if (typeof matcher.next === 'function') {
                                                 matcher.next(v, this);
                                             }
@@ -96,18 +99,12 @@ var Emit;
                 filter: {
                     writable: true,
                     value: function (filter) {
-                        var match = this.match.bind(this);
-                        var matcher;
-                        return Emit.create(function (notify, rethrow) {
-                            matcher = [{
-                                match: Emit.isEmitter(filter) ? filter.latest : toFilter(filter),
-                                next: notify,
-                                'throw': rethrow
-                            }];
-                            match(matcher);
-                        }, function () {
-                            matcher.length = 0;
+                        var matcher = Object.defineProperty(Emit.inject(), 'test', {
+                            writable: true,
+                            value: Emit.isEmitter(filter) ? filter.latest : toFilter(filter)
                         });
+                        this.match([matcher]);
+                        return matcher;
                     }
                 },
                 map: {
@@ -413,7 +410,7 @@ var Emit;
         merge: {
             writable: true,
             value: function merge() {
-                return Emit.value(slice.call(arguments, 0)).flatten(1);
+                return Emit.value(multiArgs(arguments)).flatten(1);
             }
         },
         sync: {

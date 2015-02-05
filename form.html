@@ -45,7 +45,7 @@
 
         var result = document.getElementById('result');
 
-        Emit.combine.apply(Emit, inputs)
+        Emit.combine(inputs)
             .map(function (ns) {
                 return ns.reduce(function (r, n) { return r + n; }, 0);
             }).forEach(function (n) {
