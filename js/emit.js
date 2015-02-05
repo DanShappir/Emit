@@ -99,7 +99,7 @@ var Emit;
                 filter: {
                     writable: true,
                     value: function (filter) {
-                        var matcher = Object.defineProperty(Emit.inject(), 'test', {
+                        var matcher = Object.defineProperty(Emit.iter(), 'test', {
                             writable: true,
                             value: Emit.isEmitter(filter) ? filter.latest : toFilter(filter)
                         });
@@ -127,7 +127,6 @@ var Emit;
                                             prev.then(function (vs) {
                                                 notify(vs[1]);
                                             }, function (e) {
-                                                proceed = false;
                                                 rethrow(e);
                                             });
                                         } else {
@@ -148,23 +147,17 @@ var Emit;
                     value: function (filter) {
                         var callback = Emit.isEmitter(filter) ? filter.didEmit : toFilter(filter);
                         var pump = this._pump;
-                        var proceed = true;
                         return Emit.create(function (notify, rethrow) {
                             pump(function* () {
                                 try {
-                                    while (proceed) {
-                                        var v = yield;
-                                        if (callback(v, this)) {
-                                            break;
-                                        }
-                                        notify(v);
-                                    }
+                                    var v;
+                                    do {
+                                        v = yield;
+                                    } while (!callback(v, this) && notify(v));
                                 } catch (e) {
                                     rethrow(e);
                                 }
                             }.bind(this));
-                        }, function () {
-                            proceed = false;
                         });
                     }
                 },
@@ -186,17 +179,13 @@ var Emit;
                                 try {
                                     while (proceed) {
                                         setTimeout(function () {
-                                            if (proceed) {
-                                                notify(this);
-                                            }
+                                            proceed = notify(this);
                                         }.bind(yield), duration);
                                     }
                                 } catch (e) {
                                     rethrow(e);
                                 }
                             });
-                        }, function () {
-                            proceed = false;
                         });
                     }
                 },
@@ -204,24 +193,17 @@ var Emit;
                     writable: true,
                     value: function () {
                         var pump = this._pump;
-                        var proceed = true;
                         return Emit.create(function (notify, rethrow) {
                             pump(function* () {
-                                var prev;
+                                var v, prev;
                                 try {
-                                    while (proceed) {
-                                        var v = yield;
-                                        if (v !== prev) {
-                                            prev = v;
-                                            notify(v);
-                                        }
-                                    }
+                                    do {
+                                        v = yield;
+                                    } while (v === prev || notify(prev = v));
                                 } catch (e) {
                                     rethrow(e)
                                 }
                             });
-                        }, function () {
-                            proceed = false;
                         });
                     }
                 },
@@ -246,8 +228,7 @@ var Emit;
                                                     emitter
                                                         .flatten(depth - 1)
                                                         .until(function (b) {
-                                                            notify(b);
-                                                            return !proceed;
+                                                            return !notify(b);
                                                         }).forEach(noop);
                                                 });
                                         }
@@ -265,21 +246,17 @@ var Emit;
                     writable: true,
                     value: function (accumulator, seed) {
                         var pump = this._pump;
-                        var proceed = true;
                         return Emit.create(function (notify, rethrow) {
                             pump(function* () {
                                 try {
                                     var result = seed;
-                                    while (proceed) {
+                                    do {
                                         result = accumulator(result, (yield), this);
-                                        notify(result);
-                                    }
+                                    } while (notify(result));
                                 } catch (e) {
                                     rethrow(e);
                                 }
                             }.bind(this));
-                        }, function () {
-                            proceed = false;
                         });
                     }
                 },
@@ -291,16 +268,17 @@ var Emit;
                             Emit.isEmitter(until) ? until.didEmit : toFilter(until);
                         overlap || (overlap = 0);
                         var pump = this._pump;
-                        var proceed = true;
                         return Emit.create(function (notify, rethrow) {
                             pump(function* () {
                                 try {
                                     var storage = [];
-                                    while (proceed) {
+                                    while (true) {
                                         var v = yield;
                                         var length = storage.push(v);
                                         if (callback(v, storage, this)) {
-                                            notify(storage);
+                                            if (!notify(storage)) {
+                                                break;
+                                            }
                                             storage = storage.slice(overlap >= 0 ? length - overlap : -overlap);
                                         }
                                     }
@@ -308,8 +286,6 @@ var Emit;
                                     rethrow(e);
                                 }
                             }.bind(this));
-                        }, function () {
-                            proceed = false;
                         });
                     }
                 },
@@ -317,15 +293,13 @@ var Emit;
                     writable: true,
                     value: function (iter) {
                         var pump = this._pump;
-                        var proceed = true;
                         var done = false;
                         return Emit.create(function (notify, rethrow) {
                             pump(function* () {
                                 try {
                                     while (true) {
                                         var v = yield;
-                                        notify(v);
-                                        if (!proceed) {
+                                        if (!notify(v)) {
                                             break;
                                         }
                                         if (!done) {
@@ -339,8 +313,6 @@ var Emit;
                                     }
                                 }
                             });
-                        }, function () {
-                            proceed = false;
                         });
                     }
                 },
@@ -391,6 +363,7 @@ var Emit;
                                 if (r.done) {
                                     done(notify);
                                 }
+                                return !r.done
                             }
 
                             source(notify, function exception(e) {
@@ -403,7 +376,7 @@ var Emit;
                 });
             }
         },
-        inject: {
+        iter: {
             writable: true,
             value: function () {
                 var done = false;
