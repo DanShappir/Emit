@@ -71,7 +71,8 @@ var Emit;
                 },
                 match: {
                     writable: true,
-                    value: function (matchers) {
+                    value: function () {
+                        var matchers = multiArgs(arguments);
                         this._pump(function* () {
                             try {
                                 while (matchers.length) {
@@ -103,7 +104,7 @@ var Emit;
                             writable: true,
                             value: Emit.isEmitter(filter) ? filter.latest : toFilter(filter)
                         });
-                        this.match([matcher]);
+                        this.match(matcher);
                         return matcher;
                     }
                 },

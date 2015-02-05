@@ -70,7 +70,7 @@ seq.next(42); // Outputs 42
 ```
 
 ### Emit.merge([s1, s2, ...] | s1, s2, ...)
-Given a single argument containing an array of more observable sequences, or multiple observable sequences as distinct arguments, creates a new observable sequence which contains the elements of all these sequences. No order is guaranteed between the emitted elements, instead new elements are added to the output observable sequence as soon as they arrive on the input sequence.
+Given a single argument containing an array of one or more observable sequences, or one or more observable sequences provided as distinct arguments, creates a new observable sequence which contains the elements of all these sequences. No order is guaranteed between the emitted elements, instead new elements are added to the output observable sequence as soon as they arrive on the input sequence.
 
 If any one of the input sequences throws an exception, that exception will be rethrown into the output observable sequence.
 
@@ -80,7 +80,7 @@ var mouseButton = Emit.merge(Emit.events('mousedown', canvas).map(true), Emit.ev
 ```
 
 ### Emi.sync([s1, s2, ...] | s1, s2, ...)
-Given a single argument containing an array of more observable sequences, or multiple observable sequences as distinct arguments, creates a new observable sequence which contains arrays as elements. Each such array contains elements from the input sequences, in order. The output is synchronized with all the input. This means a new elements will be emitted only after all the input sequences have provided new elements. As a result, if one input sequence emits two or more elements before the other sequences emit, only its last element will be used, and the others will be discarded.
+Given a single argument containing an array of one or more observable sequences, or one or more observable sequences provided as distinct arguments, creates a new observable sequence which contains arrays as elements. Each such array contains elements from the input sequences, in order. The output is synchronized with all the input. This means a new elements will be emitted only after all the input sequences have provided new elements. As a result, if one input sequence emits two or more elements before the other sequences emit, only its last element will be used, and the others will be discarded.
 
 If any one of the input sequences throws an exception, that exception will be rethrown into the output observable sequence.
 
@@ -90,7 +90,7 @@ var seq = Emit.sync(Emit.interval(1000), Emit.interval(500));
 ```
 
 ### Emit.combine([s1, s2, ...] | s1, s2, ...)
-Given a single argument containing an array of more observable sequences, or multiple observable sequences as distinct arguments, creates a new observable sequence which contains arrays as elements. Each such array contains elements from the input sequences, in order. The output is a combination of all the inputs. This means a new elements will be emitted every time one of the input sequences provides a new element. As a result, if one input sequence emits fewer elements than the other sequences, at least some of its elements will be reused in multiple outputs.
+Given a single argument containing an array of one or more observable sequences, or one or more observable sequences provided as distinct arguments, creates a new observable sequence which contains arrays as elements. Each such array contains elements from the input sequences, in order. The output is a combination of all the inputs. This means a new elements will be emitted every time one of the input sequences provides a new element. As a result, if one input sequence emits fewer elements than the other sequences, at least some of its elements will be reused in multiple outputs.
 
 If any one of the input sequences throws an exception, that exception will be rethrown into the output observable sequence.
 
@@ -125,10 +125,10 @@ The *forEach* method returns a reference to the observable sequence so that it c
 Emit.interval(1000).accumulate((r) => r + 1, 0).forEach((v) => console.log(v));
 ```
 
-### .match(matchers)
-Splits an observable sequence between multiple handlers based on matching functions. The argument is an array of objects, which must implement a *match* member function. This method scans the provided matchers in order, and utilize the first matcher for which the *match* member function returns a truthy value.
+### .match([m1, m2, ...] | m1, m2, ...)
+Given a single argument containing an array of one or more matcher objects, or one or more matcher objects provided as distinct arguments, splits an observable sequence between the matchers. Each matcher object must implement a *test* member function. This method scans the provided matchers in order, and utilizes the first matcher for which *test* returns a truthy value.
 
-To handle value, matcher needs to implement iterator-like interface, consisting of the methods *next* and *throw*. After a match, the *next* method is invoked, with the matched element as the first argument and a reference to the observable sequence  as the second argument. If the matcher doesn't implement *next* then the element is discarded.
+To handle value, matcher needs to implement iterator-like interface, consisting of the methods *next* and *throw*. After a matcher is selected, its *next* method is invoked with the matched element as the first argument and a reference to the observable sequence as the second argument. If the matcher doesn't implement *next* then the element is discarded.
 
 If an error is thrown on the original observable sequence, it is passed to **all** the matchers that implement the *throw* method, with the observable sequence  as the second argument.
 
@@ -145,9 +145,9 @@ Emit.interval(1000).accumulate((r) => r + 1, 0).filter((v) => v % 2 === 0)forEac
 ```
 
 ### .map(selector)
-Given an observable sequence, transform its elements by applying a mapping function, specified as the *selector*, to each element. If *selector* is a value instead of a function, all elements are transformed to that value.
+Given an observable sequence, transform its elements by applying a mapping function, specified as the *selector*, to each element. If *selector* is a value instead of a function, all elements are transformed to that value (as if a function is used that always returns this value, regardless of the arguments passed to it.)
 
-If a function specified as returns a thenable object, *selector*, the output observable sequence will contain the result of the thenable object. Order is automatically maintained between thenable objects. If such a thenable object fails, an exception will be thrown on the output observable sequence.
+If a function specified as *selector* returns a thenable object, the output observable sequence will contain the result of the thenable object. Order is automatically maintained between thenable objects. If such a thenable object fails, an exception will be thrown on the created observable sequence.
 
 ```javascript
 // Display tag name of HTML element user clicks on
@@ -164,7 +164,8 @@ If the **Sequences** library is available, [Sequences.toFilter](https://github.c
 Emit.interval(1000).accumulate((r) => r + 1, 0).until((v) => v >= 3)forEach((v) => console.log(v));
 ```
 
-### .head(number)
+### .head([number])
+Given an observable sequence, passes its first *number* elements. If *number* isn't specified, it defaults to 1.
 
 ### .delay(duration)
 
