@@ -148,10 +148,11 @@ var Emit;
                     value: function (filter) {
                         var callback = Emit.isEmitter(filter) ? filter.didEmit : toFilter(filter);
                         var pump = this._pump;
+                        var proceed = true;
                         return Emit.create(function (notify, rethrow) {
                             pump(function* () {
                                 try {
-                                    while (true) {
+                                    while (proceed) {
                                         var v = yield;
                                         if (callback(v, this)) {
                                             break;
@@ -162,6 +163,8 @@ var Emit;
                                     rethrow(e);
                                 }
                             }.bind(this));
+                        }, function () {
+                            proceed = false;
                         });
                     }
                 },
@@ -305,6 +308,37 @@ var Emit;
                                     rethrow(e);
                                 }
                             }.bind(this));
+                        }, function () {
+                            proceed = false;
+                        });
+                    }
+                },
+                listen: {
+                    writable: true,
+                    value: function (iter) {
+                        var pump = this._pump;
+                        var proceed = true;
+                        var done = false;
+                        return Emit.create(function (notify, rethrow) {
+                            pump(function* () {
+                                try {
+                                    while (true) {
+                                        var v = yield;
+                                        notify(v);
+                                        if (!proceed) {
+                                            break;
+                                        }
+                                        if (!done) {
+                                            done = iter.next(v).done;
+                                        }
+                                    }
+                                } catch (e) {
+                                    rethrow(e);
+                                    if (!done) {
+                                        iter.throw(e);
+                                    }
+                                }
+                            });
                         }, function () {
                             proceed = false;
                         });
