@@ -5,7 +5,7 @@ Emit is a light-weight, Open Source library for [Reactive Programming](https://g
 // Clock that updates every second, using Emit + jQuery
 Emit.interval(1000).map(() => (new Date).toLocaleTimeString()).forEach((t) => $clock.text(t));
 ```
-Emit works well with most any JavaScript library, for example jQuery. In addition, Emit works with and leverages Promises, as well as any other thenable object.  Because Emit is small and simple to use, it provides an easy way to start leveraging the benefits of Reactive programming in your JavaScript applications today.
+Emit works well with most any JavaScript library, for example jQuery. In addition, Emit works with and leverages Promises, as well as any other thenable object.  Because Emit is small and simple to use, it provides an easy way to start leveraging the benefits of Reactive programming in your JavaScript applications.
 
 Emit is compatible with the released versions of Chrome, Firefox and Opera. Note that the included code snippets utilize the arrow function notation, which is currently only supported by Firefox.
 
@@ -34,6 +34,9 @@ The first category mainly provides functions for creating new observable sequenc
 
 ## Functions in *Emit* namespace
 
+### Emit.isEmitter(param)
+Returns *true* if param is an observable sequence. Returns *false* otherwise.
+
 ### Emit.create(source[,done])
 Create a new observable sequence from a data source, and returns that sequence. The function accepts two functions:
 
@@ -56,13 +59,6 @@ If the provided value is thenable (has a *then* method) then its success value w
 Emit.value(Promise.resolve('tada')).forEach((v) => console.log(v)); // output tada
 ```
 
-### Emit.sequence(s)
-Create a new observable sequence which contains the elements of a sequence. A sequence is a collection that impelemnts *forEach*.
-
-**Note:** an observable sequence is itself a sequence, and can be used as an input for this function.
-
-**Note:* you can use the [Sequences library](https://github.com/DanShappir/Sequences) to provide *forEach* for any iteretable object/collection.
-
 ### Emit.inject()
 Create a new observable sequence into which values can be explicitly injected. The returned observable sequence also implements the iterator interface: *next* and *throw*. To inject a value into the observable sequence, call *next* and provide the value as the argument. To signal an error on the sequence, call *throw* and provide the error object.
 
@@ -73,8 +69,8 @@ var seq = Emit.inject().forEach((v) => console.log(v));
 seq.next(42); // Outputs 42
 ```
 
-### Emit.merge([s1, s2, ...]|s1, s2, ...)
-Given a sequence of sequences as a single argument, or multiple sequences as several arguments, creates a new observable sequence which contains the elements of all these sequences. No order is guaranteed between the emitted elements, instead new elements are added to the output observable sequence as soon as they arrive on the input sequence.
+### Emit.merge(s1, s2, ...)
+Given one or more observable sequences, creates a new observable sequence which contains the elements of all these sequences. No order is guaranteed between the emitted elements, instead new elements are added to the output observable sequence as soon as they arrive on the input sequence.
 
 If any one of the input sequences throws an exception, that exception will be rethrown into the output observable sequence.
 
@@ -83,8 +79,8 @@ If any one of the input sequences throws an exception, that exception will be re
 var mouseButton = Emit.merge(Emit.events('mousedown', canvas).map(true), Emit.events('mouseup', canvas).map(false));
 ```
 
-### Emi.sync([s1, s2, ...]|s1, s2, ...)
-Given a sequence of sequences as a single argument, or multiple sequences as several arguments, creates a new observable sequence which contains arrays as elements. Each such array contains elements from the input sequences, in order. The output is synchronized with all the input. This means a new elements will be emitted only after all the input sequences have provided new elements. As a result, if one input sequence emits two or more elements before the other sequences emit, only its last element will be used, and the others will be discarded.
+### Emi.sync(s1, s2, ...)
+Given one or more observable sequences, creates a new observable sequence which contains arrays as elements. Each such array contains elements from the input sequences, in order. The output is synchronized with all the input. This means a new elements will be emitted only after all the input sequences have provided new elements. As a result, if one input sequence emits two or more elements before the other sequences emit, only its last element will be used, and the others will be discarded.
 
 If any one of the input sequences throws an exception, that exception will be rethrown into the output observable sequence.
 
@@ -93,8 +89,8 @@ If any one of the input sequences throws an exception, that exception will be re
 var seq = Emit.sync(Emit.interval(1000), Emit.interval(500));
 ```
 
-### Emit.combine([s1, s2, ...]|s1, s2, ...)
-Given a sequence of sequences as a single argument, or multiple sequences as several arguments, creates a new observable sequence which contains arrays as elements. Each such array contains elements from the input sequences, in order. The output is a combination of all the inputs. This means a new elements will be emitted every time one of the input seqeunces provides a new element. As a result, if one input sequence emits fewer elements than the other sequences, at least some of its elements will be resued in multiple outputs.
+### Emit.combine(s1, s2, ...)
+Given one or more observable sequences, creates a new observable sequence which contains arrays as elements. Each such array contains elements from the input sequences, in order. The output is a combination of all the inputs. This means a new elements will be emitted every time one of the input seqeunces provides a new element. As a result, if one input sequence emits fewer elements than the other sequences, at least some of its elements will be resued in multiple outputs.
 
 If any one of the input sequences throws an exception, that exception will be rethrown into the output observable sequence.
 
@@ -119,9 +115,6 @@ Creates an observable sequence that emits every *delay* period of milliseconds, 
 
 ## Observable Sequence Methods
 
-### .isEmitter
-Read only boolean field that contains the value *true*. Provides an easy method to check if a given object is an Emit observable sequence.
-
 ### .forEach(callback[, report])
 Executes the function specified as callback for every element emitted on the observable sequence. The *callback* function is invoked with two arguments: the emitted value, and a referrence to the observable sequence. An optional *report* function can be specified, which will catch exceptions thrown on the observable sequence. If specified, *report* will be invoked with two arguments: the thrown value, and a referrence to the observable sequence.
 
@@ -132,11 +125,8 @@ The *forEach* method returns a referrence to the observable sequence so that it 
 Emit.interval(1000).accumulate((r) => r + 1, 0).forEach((v) => console.log(v));
 ```
 
-### .then(callback[, report])
-An alias for *forEach*, this method makes observable sequences thenable.
-
-### .match([m1, m2, ...]|m1, m2, ...)
-Splits an observable sequence between multiple handlers based on matching functions. Each matcher is represnted by an object that must implement a *match* member function. This function scans the provided matchers in order, and utilize the first matcher for which the *match* member function returns a truthy value.
+### .match(matchers)
+Splits an observable sequence between multiple handlers based on matching functions. The argument is an array of objects, which must implement a *match* member function. This method scans the provided matchers in order, and utilize the first matcher for which the *match* member function returns a truthy value.
 
 To handle value, matcher needs to implement iterator-like interface, consisting of the methods *mext* and *throw*. After a match, the *next* method is invoked, with the matched element as the first argument and a referrence to the observable sequence  as the second argument. If the matcher doesn't implement *next* then the element is discarded.
 

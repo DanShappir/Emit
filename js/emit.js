@@ -15,13 +15,16 @@ var Emit;
         var result = Number(arg);
         return isNaN(result) ? def : result;
     }
+    function multiArgs(args) {
+        return args.length === 1 && Array.isArray(args[0]) ? args[0] : slice.call(args, 0);
+    }
 
     var toFilter = typeof Sequences !== 'undefined' ?
         Sequences.toFilter :
         function (f) { return f; };
 
     function join(args, isReady) {
-        var emitters = slice.call(args, 0);
+        var emitters = multiArgs(args);
         var done = false;
 
         function isDone() {
@@ -74,7 +77,7 @@ var Emit;
                                 while (matchers.length) {
                                     var v = yield;
                                     matchers.some(function (matcher) {
-                                        if (matcher.match(v, this)) {
+                                        if (matcher.test(v, this)) {
                                             if (typeof matcher.next === 'function') {
                                                 matcher.next(v, this);
                                             }
@@ -96,18 +99,12 @@ var Emit;
                 filter: {
                     writable: true,
                     value: function (filter) {
-                        var match = this.match.bind(this);
-                        var matcher;
-                        return Emit.create(function (next, rethrow) {
-                            matcher = [{
-                                match: Emit.isEmitter(filter) ? filter.latest : toFilter(filter),
-                                next: next,
-                                'throw': rethrow
-                            }];
-                            match(matcher);
-                        }, function () {
-                            matcher.length = 0;
+                        var matcher = Object.defineProperty(Emit.iter(), 'test', {
+                            writable: true,
+                            value: Emit.isEmitter(filter) ? filter.latest : toFilter(filter)
                         });
+                        this.match([matcher]);
+                        return matcher;
                     }
                 },
                 map: {
@@ -130,7 +127,6 @@ var Emit;
                                             prev.then(function (vs) {
                                                 next(vs[1]);
                                             }, function (e) {
-                                                proceed = false;
                                                 rethrow(e);
                                             });
                                         } else {
@@ -154,13 +150,10 @@ var Emit;
                         return Emit.create(function (next, rethrow) {
                             pump(function* () {
                                 try {
-                                    while (true) {
-                                        var v = yield;
-                                        if (callback(v, this)) {
-                                            break;
-                                        }
-                                        next(v);
-                                    }
+                                    var v;
+                                    do {
+                                        v = yield;
+                                    } while (!callback(v, this) && next(v));
                                 } catch (e) {
                                     rethrow(e);
                                 }
@@ -186,17 +179,13 @@ var Emit;
                                 try {
                                     while (proceed) {
                                         setTimeout(function () {
-                                            if (proceed) {
-                                                next(this);
-                                            }
+                                            proceed = next(this);
                                         }.bind(yield), duration);
                                     }
                                 } catch (e) {
                                     rethrow(e);
                                 }
                             });
-                        }, function () {
-                            proceed = false;
                         });
                     }
                 },
@@ -204,24 +193,17 @@ var Emit;
                     writable: true,
                     value: function () {
                         var pump = this._pump;
-                        var proceed = true;
                         return Emit.create(function (next, rethrow) {
                             pump(function* () {
-                                var prev;
+                                var v, prev;
                                 try {
-                                    while (proceed) {
-                                        var v = yield;
-                                        if (v !== prev) {
-                                            prev = v;
-                                            next(v);
-                                        }
-                                    }
+                                    do {
+                                        v = yield;
+                                    } while (v === prev || next(prev = v));
                                 } catch (e) {
                                     rethrow(e)
                                 }
                             });
-                        }, function () {
-                            proceed = false;
                         });
                     }
                 },
@@ -246,8 +228,7 @@ var Emit;
                                                     emitter
                                                         .flatten(depth - 1)
                                                         .until(function (b) {
-                                                            next(b);
-                                                            return !proceed;
+                                                            return !next(b);
                                                         }).forEach(noop);
                                                 });
                                         }
@@ -265,21 +246,17 @@ var Emit;
                     writable: true,
                     value: function (accumulator, seed) {
                         var pump = this._pump;
-                        var proceed = true;
                         return Emit.create(function (next, rethrow) {
                             pump(function* () {
                                 try {
                                     var result = seed;
-                                    while (proceed) {
+                                    do {
                                         result = accumulator(result, (yield), this);
-                                        next(result);
-                                    }
+                                    } while (next(result));
                                 } catch (e) {
                                     rethrow(e);
                                 }
                             }.bind(this));
-                        }, function () {
-                            proceed = false;
                         });
                     }
                 },
@@ -291,16 +268,17 @@ var Emit;
                             Emit.isEmitter(until) ? until.didEmit : toFilter(until);
                         overlap || (overlap = 0);
                         var pump = this._pump;
-                        var proceed = true;
                         return Emit.create(function (next, rethrow) {
                             pump(function* () {
                                 try {
                                     var storage = [];
-                                    while (proceed) {
+                                    while (true) {
                                         var v = yield;
                                         var length = storage.push(v);
                                         if (callback(v, storage, this)) {
-                                            next(storage);
+                                            if (!next(storage)) {
+                                                break;
+                                            }
                                             storage = storage.slice(overlap >= 0 ? length - overlap : -overlap);
                                         }
                                     }
@@ -308,8 +286,33 @@ var Emit;
                                     rethrow(e);
                                 }
                             }.bind(this));
-                        }, function () {
-                            proceed = false;
+                        });
+                    }
+                },
+                listen: {
+                    writable: true,
+                    value: function (iter) {
+                        var pump = this._pump;
+                        var done = false;
+                        return Emit.create(function (next, rethrow) {
+                            pump(function* () {
+                                try {
+                                    while (true) {
+                                        var v = yield;
+                                        if (!next(v)) {
+                                            break;
+                                        }
+                                        if (!done) {
+                                            done = iter.next(v).done;
+                                        }
+                                    }
+                                } catch (e) {
+                                    rethrow(e);
+                                    if (!done) {
+                                        iter.throw(e);
+                                    }
+                                }
+                            });
                         });
                     }
                 },
@@ -366,7 +369,7 @@ var Emit;
                 });
             }
         },
-        inject: {
+        iter: {
             writable: true,
             value: function () {
                 var done = false;
@@ -407,7 +410,7 @@ var Emit;
         merge: {
             writable: true,
             value: function merge() {
-                return Emit.value(slice.call(arguments, 0)).flatten(1);
+                return Emit.value(multiArgs(arguments)).flatten(1);
             }
         },
         sync: {
