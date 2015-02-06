@@ -33,11 +33,9 @@
                     .accumulate(function (map, image) {
                         map[iter1.next().value] = image;
                         return map;
-                    }, {}).forEach(function (map) {
-                        if (iter2.next().done) {
-                            resolve(map);
-                        }
-                    }, reject);
+                    }, {}).filter(function () {
+                        return iter2.next().done;
+                    }).forEach(resolve, reject);
             });
         }
 
