@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>Emit load resources</title>
+</head>
+<body>
+    <h2>Emit load resources</h2>
+    <div></div>
+
+    <script src="js/emit.js"></script>
+    <script src="http://rawgit.com/DanShappir/Sequences/master/js/sequences.js"></script>
+    <script>
+        'use strict';
+
+        function loadImage(src) {
+            return new Promise(function (resolve, reject) {
+                var image = new Image();
+                image.onload = resolve.bind(null, image);
+                image.onerror = reject.bind(null, image);
+                image.src = src;
+            });
+        }
+
+        function loadResources(resources) {
+            return new Promise(function (resolve, reject) {
+                resources = Sequences.toGenerator(resources);
+                var iter1 = resources();
+                var iter2 = resources(); iter2.next();
+                Emit.value(resources)
+                    .flatten()
+                    .map(loadImage)
+                    .accumulate(function (map, image) {
+                        map[iter1.next().value] = image;
+                        return map;
+                    }, {}).forEach(function (map) {
+                        if (iter2.next().done) {
+                            resolve(map);
+                        }
+                    }, reject);
+            });
+        }
+
+        var container = document.querySelector('div');
+
+        function renderResources(resourceMap) {
+            Object.keys(resourceMap).forEach(function (item) {
+                var title = document.createElement('div');
+                title.textContent = item;
+                container.appendChild(title);
+                container.appendChild(resourceMap[item]);
+            });
+        }
+
+        var resources = [
+            'http://static.parastorage.com/services/html-landing/hp/super_bawl/images4/1920/0.jpg',
+            'http://static.parastorage.com/services/html-landing/hp/super_bawl/images4/1920/1.jpg',
+            'http://static.parastorage.com/services/html-landing/hp/super_bawl/images4/1920/2.jpg'
+        ];
+        loadResources(resources)
+            .then(renderResources, console.error.bind(console));
+    </script>
+</body>
+</html>
