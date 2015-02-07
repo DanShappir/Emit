@@ -1,5 +1,5 @@
 # Emit
-Emit is a light-weight, Open Source library for [Reactive Programmingg](https://gist.github.com/staltz/868e7e9bc2a7b8c1f754) using JavaScript. Emit utilizes ECMAScript 6 (ES6) generators and iterators for implementing observable sequences. As a result, Emit is very concise, and easily extensible. Emit provides various operators for the observable sequences, modeled after array iteration methods. This makes it easy to use, in a way that will be familiar to most JavaScript developers.
+Emit is a light-weight, Open Source library for [Reactive Programming](https://gist.github.com/staltz/868e7e9bc2a7b8c1f754) using JavaScript. Emit utilizes ECMAScript 6 (ES6) generators and iterators for implementing observable sequences. As a result, Emit is very concise, and easily extensible. Emit provides various operators for the observable sequences, modeled after array iteration methods. This makes it easy to use, in a way that will be familiar to most JavaScript developers.
 
 ```javascript
 // Clock that updates every second, using Emit + jQuery
@@ -7,7 +7,7 @@ Emit.interval(1000).map(() => (new Date).toLocaleTimeString()).forEach((t) => $c
 ```
 Emit works well with most any JavaScript library, for example jQuery. In addition, Emit works with and leverages Promises, as well as any other thenable object.  Because Emit is small and simple to use, it provides an easy way to start leveraging the benefits of Reactive programming in your JavaScript applications.
 
-Emit is compatible with the released versions of Chrome, Firefox and Opera. Note that the included code snippets utilize the arrow function notation, which is currently only supported by Firefox.
+Emit is compatible with the released versions of Chrome, Firefox and Opera. Note that the code snippets in this document utilize the arrow function notation, which is currently only supported by Firefox.
 
 ## Installation
 Simply use [Bower](http://bower.io/):
@@ -24,6 +24,12 @@ In addition to the examples included in this repository, there are several onlin
 * [Wikipedia autocomplete at JSFiddle](http://jsfiddle.net/dansh/kb1da60L/)
 * [Time flies like an arrow at JSFiddle](http://jsfiddle.net/dansh/qchopp1g/)
 
+## Design and implementation notes
+1. Emit observable sequences are always **hot**. This means they emit data as soon as they can, and to not need to be enabled.
+2. There is no subscribe / unsubscribe mechanism - simply attach a data consumer (function) to an observable sequence to start receiving data.
+3. There is no notification for end-of-data on an observable sequence. Consumers only receive notifications for data and for errors.
+4. Data sources for observable sequence are notified when consumers no longer require data, e.g. [head](). They can use this notification to release resources or detach from events.
+
 ## API
 Emit functions fall into two main categories:
 
@@ -34,21 +40,26 @@ The first category mainly provides functions for creating new observable sequenc
 
 ## Functions in *Emit* namespace
 
-### Emit.isEmitter(param)
-Returns *true* if param is an observable sequence. Returns *false* otherwise.
+### Emit.isEmitter(candidate)
+Returns *true* if candidate is an observable sequence. Returns *false* otherwise.
 
 ### Emit.create(source[,done])
 Create a new observable sequence from a data source, and returns that sequence. The function accepts two functions:
 
-1. source - called immediately with two arguments: *notify* and *rethrow*. Invoke *notify* with a value to push that value into the sequence. Invoke *rethrow* with an error object to signal an error on the sequence.
-2. done (optional) - will be invoked when the sequence should stop generating values, e.g. it's no longer observed or an error was signaled on it.
+1. source - called whenever an active consumer is attached to observable sequence. Called with a single argument which implements the *iterator* interface. Invoke the *next* method with a value to push that value into the sequence. Invoke the *throw* method with an error object to signal an error on the sequence.
+2. done (optional) - called whenever a consumer is no longer active, for example as result of [until]() or [head](). The same *iterator* argument is also passed to this function.
+
+In addition, both functions are invoked with the same context, which is initially an empty object. The functions can utilize this context to store private state information.
 
 ```javascript
-var interval = Emit.create((notify) => setInterval(notify, 1000)); // notify every second
+var interval = Emit.create((iter) => setInterval(iter.next, 1000)); // notify every second
 ```
 
+### Emit.reusable(source[,done])
+Like [Emit.create]() with built-in support for multiple consumers. *source* is called only when the number of active consumers goes up from 0 to 1. And *done* is called only when the number of active consumers goes back down to 0. Any value emitted will be transferred to all the active consumers.
+
 ### Emit.value(v)
-Create a new observable sequence which contains a single value. Note that this is a **hot** observable, which means the value will be emitted asynchronously, as soon as possible.
+Create a new observable sequence which contains a single value.
 
 ```javascript
 Emit.value(42).forEach((v) => console.log(v)); // output 42
@@ -62,7 +73,7 @@ Emit.value(Promise.resolve('tada')).forEach((v) => console.log(v)); // output ta
 ### Emit.iter()
 Create a new observable sequence that also implement the ES6 iterator interface: *next* and *throw*. To emit values on this observable sequence, invoke *next* with the values as arguments. To signal an error on the sequence, call *throw* and provide the error object.
 
-The *next* method returns an object that has a *value* property equal to the value passed to *next*, and a *done* property that is *true* is the observable sequence is no longer accepting elements, and *false* otherwise.
+The *next* method returns an object that has a *done* property that is *true* is the observable sequence is no longer accepting elements, and *false* otherwise.
 
 ```javascript
 var seq = Emit.inject().forEach((v) => console.log(v));

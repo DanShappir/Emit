@@ -3,6 +3,15 @@ var Emit;
     'use strict';
 
     function noop() {};
+    var noopIter = {
+        next: function () {
+            return {
+                done: true
+            };
+        },
+        'throw': noop
+    };
+
     var slice = Array.prototype.slice;
 
     function hasMethod(name, obj) {
@@ -21,7 +30,39 @@ var Emit;
 
     var toFilter = typeof Sequences !== 'undefined' ?
         Sequences.toFilter :
-        function (f) { return f; };
+        function (f) { 
+            return f; 
+        };
+
+    function makeContainer() {
+        var map = new Map();
+        return {
+            add: function (key, value) {
+                return map.set(key, value).size === 1;
+            },
+            remove: function (key) {
+                map.delete(key);
+                return map.size === 0;
+            },
+            next: function () {
+                var args = arguments;
+                map.forEach(function (value, key) {
+                    if (value.next.apply(value, args).done) {
+                        map.delete(key);
+                    }
+                });
+                return {
+                    done: map.size === 0
+                };
+            },
+            'throw': function () {
+                var args = arguments;
+                map.forEach(function (value) {
+                    value.throw.apply(value, args);
+                });
+            }
+        };
+    }
 
     function join(args, isReady) {
         var emitters = multiArgs(args);
@@ -31,18 +72,22 @@ var Emit;
             return done;
         }
 
-        return Emit.create(function (next, rethrow) {
-            var values = emitters.map(function () { return undefined; });
-            var states = emitters.map(function () { return false; });
+        return Emit.reusable(function (iter) {
+            var values = emitters.map(function () { 
+                return undefined; 
+            });
+            var states = emitters.map(function () { 
+                return false; 
+            });
             function update(index, value) {
                 values[index] = value;
                 states[index] = true;
                 if (isReady(states)) {
-                    next(values.slice(0));
+                    iter.next(values.slice(0));
                 }
             }
             emitters.forEach(function (emitter, index) {
-                emitter.until(isDone).forEach(update.bind(null, index), rethrow);
+                emitter.until(isDone).forEach(update.bind(null, index), iter.throw);
             });
         }, function () {
             done = true;
@@ -115,8 +160,9 @@ var Emit;
                             selector :
                             function () { return selector; };
                         var pump = this._pump;
-                        var proceed = true;
-                        return Emit.create(function (next, rethrow) {
+                        var proceed;
+                        return Emit.reusable(function (iter) {
+                            proceed = true;
                             pump(function* () {
                                 try {
                                     var prev = Promise.resolve();
@@ -126,16 +172,16 @@ var Emit;
                                         if (isThenable(v)) {
                                             prev = Promise.all([prev, v]);
                                             prev.then(function (vs) {
-                                                next(vs[1]);
+                                                iter.next(vs[1]);
                                             }, function (e) {
                                                 rethrow(e);
                                             });
                                         } else {
-                                            next(v);
+                                            iter.next(v);
                                         }
                                     }
                                 } catch (e) {
-                                    rethrow(e);
+                                    iter.throw(e);
                                 }
                             }.bind(this));
                         }, function () {
@@ -148,15 +194,15 @@ var Emit;
                     value: function (filter) {
                         var callback = Emit.isEmitter(filter) ? filter.didEmit : toFilter(filter);
                         var pump = this._pump;
-                        return Emit.create(function (next, rethrow) {
+                        return Emit.reusable(function (iter) {
                             pump(function* () {
                                 try {
                                     var v;
                                     do {
                                         v = yield;
-                                    } while (!callback(v, this) && next(v));
+                                    } while (!callback(v, this) && !iter.next(v).done);
                                 } catch (e) {
-                                    rethrow(e);
+                                    iter.throw(e);
                                 }
                             }.bind(this));
                         });
@@ -174,17 +220,17 @@ var Emit;
                     writable: true,
                     value: function (duration) {
                         var pump = this._pump;
-                        var proceed = true;
-                        return Emit.create(function (next, rethrow) {
+                        return Emit.reusable(function (iter) {
                             pump(function* () {
                                 try {
+                                    var proceed = true;
                                     while (proceed) {
                                         setTimeout(function () {
-                                            proceed = next(this);
+                                            proceed = !iter.next(this).done;
                                         }.bind(yield), duration);
                                     }
                                 } catch (e) {
-                                    rethrow(e);
+                                    iter.throw(e);
                                 }
                             });
                         });
@@ -194,15 +240,15 @@ var Emit;
                     writable: true,
                     value: function () {
                         var pump = this._pump;
-                        return Emit.create(function (next, rethrow) {
+                        return Emit.reusable(function (iter) {
                             pump(function* () {
                                 var v, prev;
                                 try {
                                     do {
                                         v = yield;
-                                    } while (v === prev || next(prev = v));
+                                    } while (v === prev || !iter.next(prev = v).done);
                                 } catch (e) {
-                                    rethrow(e)
+                                    iter.throw(e);
                                 }
                             });
                         });
@@ -213,29 +259,30 @@ var Emit;
                     value: function (depth) {
                         depth = numericArg(depth, 0);
                         var pump = this._pump;
-                        var proceed = true;
-                        return Emit.create(function (next, rethrow) {
+                        var proceed;
+                        return Emit.reusable(function (iter) {
+                            proceed = true;
                             pump(function* () {
                                 try {
                                     while (proceed) {
                                         var v = yield;
                                         if (!isSequence(v)) {
-                                            next(v);
+                                            iter.next(v);
                                         } else {
                                             v.forEach(depth === 0 ?
-                                                next :
+                                                iter.next :
                                                 function (a) {
                                                     var emitter = Emit.isEmitter(a) ? a : Emit.value(a);
                                                     emitter
                                                         .flatten(depth - 1)
                                                         .until(function (b) {
-                                                            return !next(b);
+                                                            return iter.next(b).done;
                                                         }).forEach(noop);
                                                 });
                                         }
                                     }
                                 } catch (e) {
-                                    rethrow(e)
+                                    iter.throw(e);
                                 }
                             });
                         }, function () {
@@ -245,17 +292,16 @@ var Emit;
                 },
                 accumulate: {
                     writable: true,
-                    value: function (accumulator, seed) {
+                    value: function (accumulator, value) {
                         var pump = this._pump;
-                        return Emit.create(function (next, rethrow) {
+                        return Emit.reusable(function (iter) {
                             pump(function* () {
                                 try {
-                                    var result = seed;
                                     do {
-                                        result = accumulator(result, (yield), this);
-                                    } while (next(result));
+                                        value = accumulator(value, (yield), this);
+                                    } while (!iter.next(value).done);
                                 } catch (e) {
-                                    rethrow(e);
+                                    iter.throw(e);
                                 }
                             }.bind(this));
                         });
@@ -269,7 +315,7 @@ var Emit;
                             Emit.isEmitter(until) ? until.didEmit : toFilter(until);
                         overlap || (overlap = 0);
                         var pump = this._pump;
-                        return Emit.create(function (next, rethrow) {
+                        return Emit.reusable(function (iter) {
                             pump(function* () {
                                 try {
                                     var storage = [];
@@ -277,14 +323,14 @@ var Emit;
                                         var v = yield;
                                         var length = storage.push(v);
                                         if (callback(v, storage, this)) {
-                                            if (!next(storage)) {
+                                            if (iter.next(storage).done) {
                                                 break;
                                             }
                                             storage = storage.slice(overlap >= 0 ? length - overlap : -overlap);
                                         }
                                     }
                                 } catch (e) {
-                                    rethrow(e);
+                                    iter.throw(e);
                                 }
                             }.bind(this));
                         });
@@ -292,26 +338,20 @@ var Emit;
                 },
                 listen: {
                     writable: true,
-                    value: function (iter) {
+                    value: function (listener) {
                         var pump = this._pump;
                         var done = false;
-                        return Emit.create(function (next, rethrow) {
+                        return Emit.reusable(function (iter) {
                             pump(function* () {
                                 try {
-                                    while (true) {
-                                        var v = yield;
-                                        if (!next(v)) {
-                                            break;
-                                        }
-                                        if (!done) {
-                                            done = iter.next(v).done;
-                                        }
-                                    }
+                                    do {
+                                        done = done || listener.next(v).done;
+                                    } while (!iter.next(v).done);
                                 } catch (e) {
-                                    rethrow(e);
                                     if (!done) {
-                                        iter.throw(e);
+                                        listener.throw(e);
                                     }
+                                    iter.throw(e);
                                 }
                             });
                         });
@@ -320,7 +360,9 @@ var Emit;
                 didEmit: {
                     get: function () {
                         var result = false;
-                        this.forEach(function () { result = true; });
+                        this.forEach(function () { 
+                            result = true; 
+                        });
                         return function () {
                             var r = result;
                             result = false;
@@ -330,7 +372,9 @@ var Emit;
                 },
                 latest: {
                     get: function (result) {
-                        this.forEach(function (v) { result = v; });
+                        this.forEach(function (v) { 
+                            result = v; 
+                        });
                         return function () {
                             return result;
                         };
@@ -339,7 +383,9 @@ var Emit;
                 throttle: {
                     writable: true,
                     value: function (duration) {
-                        return Emit.sync(this, Emit.interval(duration)).map(function (vs) { return vs[0]; });
+                        return Emit.sync(this, Emit.interval(duration)).map(function (vs) { 
+                            return vs[0]; 
+                        });
                     }
                 }
             })
@@ -357,56 +403,71 @@ var Emit;
                 return Object.create(Emit.prototype, {
                     _pump: {
                         value: function pump(generator) {
-                            var iterator = generator();
-                            iterator.next();
-                            source(function next(v) {
-                                var r = iterator.next(v);
+                            var context = {};
+                            var target = generator();
+                            target.next();
+                            var iter = {
+                                next: function () {
+                                    var r = target.next.apply(target, arguments);
                                     if (r.done) {
-                                        done();
+                                        done.call(context, iter);
                                     }
-                                    return !r.done;
-                                }, iterator.throw.bind(iterator));
+                                    return r;
+                                },
+                                throw: target.throw.bind(target)
+                            };
+                            source.call(context, iter);
                         }
                     }
                 });
+            }
+        },
+        reusable: {
+            writable: true,
+            value: function (source, done) {
+                done || (done = noop);
+                var container = makeContainer();
+                return Emit.create(function (iter) {
+                        if (container.add(this, iter)) {
+                            source.call(this, container);
+                        }
+                    }, function () {
+                        if (container.remove(this)) {
+                            done.call(this, container);
+                        }
+                    });
             }
         },
         iter: {
             writable: true,
             value: function () {
-                var done = false;
-                var _next = noop;
-                var _rethrow = noop;
-                return Object.defineProperties(Emit.create(function (next, rethrow) {
-                    _next = next;
-                    _rethrow = rethrow;
-                }, function () {
-                    done = true;
-                    _next = noop;
-                    _rethrow = noop;
-                }), {
-                    next: {
-                        value: function next(v) {
-                            _next(v);
-                            return {
-                                value: v,
-                                done: done
+                var _iter = noopIter;
+                return Object.defineProperties(Emit.reusable(function (iter) {
+                        _iter = iter;
+                    }, function () {
+                        _iter = noopIter;
+                    }), {
+                        next: {
+                            writable: true,
+                            value: function () {
+                                return _iter.next.apply(_iter, arguments);
+                            }
+                        },
+                        'throw': {
+                            writable: true,
+                            value: function () {
+                                return _iter.throw.apply(_iter, arguments);
                             }
                         }
-                    },
-                    throw: {
-                        value: function (e) {
-                            _rethrow(e);
-                        }
-                    }
-                });
+                    });
             }
         },
         value: {
             writable: true,
             value: function value(v) {
-                var p = Promise.resolve(v);
-                return Emit.create(p.then.bind(p));
+                return Emit.create(function (iter) {
+                    Promise.resolve(v).then(iter.next, iter.throw);
+                });
             }
         },
         merge: {
@@ -418,77 +479,69 @@ var Emit;
         sync: {
             writable: true,
             value: function sync() {
-                return join(arguments,
-                    function isReady(states) {
-                        if (states.every(function (state) { return state; })) {
-                            states.forEach(function (state, index, array) { array[index] = false; });
-                            return true;
-                        }
-                        return false;
+                return join(arguments, function isReady(states) {
+                    if (states.every(function (state) { return state; })) {
+                        states.forEach(function (state, index, array) { array[index] = false; });
+                        return true;
                     }
-                );
+                    return false;
+                });
             }
         },
         combine: {
             writable: true,
             value: function combine() {
                 var ready = false;
-                return join(arguments,
-                    function isReady(states) {
-                        if (ready || states.every(function (state) { return state; })) {
-                            ready = true;
-                            return true;
-                        }
-                        return false;
+                return join(arguments, function isReady(states) {
+                    if (ready || states.every(function (state) { return state; })) {
+                        ready = true;
+                        return true;
                     }
-                );
+                    return false;
+                });
             }
         },
         events: {
             writable: true,
             value: function events(type, element) {
-                var handler;
-                return Emit.create(function (next) {
-                    handler = function (ev) {
-                        next(ev);
-                    };
-                    if (typeof element.on === 'function') {
-                        element.on(type, handler);
-                    } else {
-                        element.addEventListener(type, handler, false);
-                    }
-                }, function () {
-                    if (typeof element.off === 'function') {
-                        element.off(type, handler);
-                    } else {
-                        element.removeEventListener(type, handler, false);
-                    }
-                });
+                return Emit.reusable(function (iter) {
+                        if (typeof element.on === 'function') {
+                            element.on(type, iter.next);
+                        } else {
+                            element.addEventListener(type, iter.next, false);
+                        }
+                    }, function (iter) {
+                        if (typeof element.off === 'function') {
+                            element.off(type, iter.next);
+                        } else {
+                            element.removeEventListener(type, iter.next, false);
+                        }
+                    });
             }
         },
         animationFrames: {
             writable: true,
             value: function animationFrames() {
                 var id;
-                return Emit.create(function (next) {
-                    id = window.requestAnimationFrame(function raf(timestamp) {
-                        next(timestamp);
-                        id = window.requestAnimationFrame(raf);
+                return Emit.reusable(function (iter) {
+                        id = window.requestAnimationFrame(function raf(timestamp) {
+                            iter.next(timestamp);
+                            id = window.requestAnimationFrame(raf);
+                        });
+                    }, function () {
+                        window.cancelAnimationFrame(id);
                     });
-                }, window.cancelAnimationFrame.bind(window, id));
             }
         },
         interval: {
             writable: true,
-            value: function interval() {
-                var args = slice.call(arguments, 0);
+            value: function interval(duration) {
                 var id;
-                return Emit.create(function (next) {
-                    function callback() {
-                        next(arguments.length <= 1 ? arguments[0] : slice.call(arguments, 0));
-                    }
-                    id = window.setInterval.apply(window, [callback].concat(args));
-                }, window.clearInterval.bind(window, id));
+                return Emit.reusable(function (iter) {
+                        id = window.setInterval(iter.next, duration);
+                    }, function () {
+                        window.clearInterval(id);
+                    });
             }
         }
     });
