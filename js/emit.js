@@ -93,7 +93,25 @@ var Emit;
             done = true;
         });
     }
-
+    function sync() {
+        return join(arguments, function isReady(states) {
+            if (states.every(function (state) { return state; })) {
+                states.forEach(function (state, index, array) { array[index] = false; });
+                return true;
+            }
+            return false;
+        });
+    }
+    function combine() {
+        var ready = false;
+        return join(arguments, function isReady(states) {
+            if (ready || states.every(function (state) { return state; })) {
+                ready = true;
+                return true;
+            }
+            return false;
+        });
+    }
     function joiner(func) {
         return function(until) {
             return this.buffer(until).map(func).flatten();
@@ -408,13 +426,13 @@ var Emit;
                         });
                     }
                 },
-                combine: {
-                    writable: true,
-                    value: joiner(Emit.combine)
-                },
                 sync: {
                     writable: true,
-                    value: joiner(Emit.sync)
+                    value: joiner(sync)
+                },
+                combine: {
+                    writable: true,
+                    value: joiner(combine)
                 }
             })
         },
@@ -509,28 +527,11 @@ var Emit;
         },
         sync: {
             writable: true,
-            value: function sync() {
-                return join(arguments, function isReady(states) {
-                    if (states.every(function (state) { return state; })) {
-                        states.forEach(function (state, index, array) { array[index] = false; });
-                        return true;
-                    }
-                    return false;
-                });
-            }
+            value: sync
         },
         combine: {
             writable: true,
-            value: function combine() {
-                var ready = false;
-                return join(arguments, function isReady(states) {
-                    if (ready || states.every(function (state) { return state; })) {
-                        ready = true;
-                        return true;
-                    }
-                    return false;
-                });
-            }
+            value: combine
         },
         events: {
             writable: true,
