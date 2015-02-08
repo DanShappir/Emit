@@ -519,6 +519,12 @@ var Emit;
                 });
             }
         },
+        sequence: {
+            writable: true,
+            value: function sequence(v, depth) {
+                return Emit.value(v).flatten(depth);
+            }
+        },
         merge: {
             writable: true,
             value: function merge() {
