@@ -117,20 +117,26 @@ var Emit;
                 match: {
                     writable: true,
                     value: function () {
+                        var finished = Emit.iter();
                         var matchers = multiArgs(arguments);
                         this._pump(function* () {
                             try {
-                                while (matchers.length) {
+                                finished.next(false);
+                                var done = new Set();
+                                while (matchers.length > done.size) {
                                     var v = yield;
                                     matchers.some(function (matcher) {
-                                        if (matcher.test(v, this)) {
+                                        if (!done.has(matcher) && matcher.test(v, this)) {
                                             if (typeof matcher.next === 'function') {
-                                                matcher.next(v, this);
+                                                if (matcher.next(v, this).done) {
+                                                    done.add(matcher);
+                                                }
                                             }
                                             return true;
                                         }
                                     });
                                 }
+                                finished.next(true);
                             } catch (e) {
                                 matchers.forEach(function (matcher) {
                                     if (typeof  matcher.throw === 'function') {
@@ -139,17 +145,17 @@ var Emit;
                                 });
                             }
                         }.bind(this));
-                        return this;
+                        return finished;
                     }
                 },
                 filter: {
                     writable: true,
                     value: function (filter) {
-                        var matcher = Object.defineProperty(Emit.iter(), 'test', {
-                            writable: true,
-                            value: Emit.isEmitter(filter) ? filter.latest : toFilter(filter)
-                        });
-                        this.match(matcher);
+                        var matcher = Emit.iter();
+                        var finished = this.match(matcher);
+                        matcher.test = Emit.isEmitter(filter) ?
+                            filter.until(finished).latest :
+                            toFilter(filter);
                         return matcher;
                     }
                 },
@@ -192,15 +198,19 @@ var Emit;
                 until: {
                     writable: true,
                     value: function (filter) {
-                        var callback = Emit.isEmitter(filter) ? filter.didEmit : toFilter(filter);
                         var pump = this._pump;
                         return Emit.reusable(function (iter) {
                             pump(function* () {
                                 try {
+                                    var done = false;
+                                    var callback = Emit.isEmitter(filter) ? 
+                                        filter.until(function () { return done; }).didEmit : 
+                                        toFilter(filter);
                                     var v;
                                     do {
                                         v = yield;
                                     } while (!callback(v, this) && !iter.next(v).done);
+                                    done = true;
                                 } catch (e) {
                                     iter.throw(e);
                                 }
@@ -310,14 +320,17 @@ var Emit;
                 buffer: {
                     writable: true,
                     value: function (until, overlap) {
-                        var callback = typeof until === 'number' ?
-                            function (v, storage) { return storage.length >= until; } :
-                            Emit.isEmitter(until) ? until.didEmit : toFilter(until);
                         overlap || (overlap = 0);
                         var pump = this._pump;
                         return Emit.reusable(function (iter) {
                             pump(function* () {
                                 try {
+                                    var done = false;
+                                    var callback = typeof until === 'number' ?
+                                        function (v, storage) { return storage.length >= until; } :
+                                        Emit.isEmitter(until) ? 
+                                            until.until(function () { return done; }).didEmit :
+                                            toFilter(until);
                                     var storage = [];
                                     while (true) {
                                         var v = yield;
@@ -329,6 +342,7 @@ var Emit;
                                             storage = storage.slice(overlap >= 0 ? length - overlap : -overlap);
                                         }
                                     }
+                                    done = true;
                                 } catch (e) {
                                     iter.throw(e);
                                 }
@@ -361,7 +375,7 @@ var Emit;
                     get: function () {
                         var result = false;
                         this.forEach(function () { 
-                            result = true; 
+                            result = true;
                         });
                         return function () {
                             var r = result;
