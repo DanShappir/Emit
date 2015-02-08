@@ -25,7 +25,7 @@ var Emit;
         return isNaN(result) ? def : result;
     }
     function multiArgs(args) {
-        return args.length === 1 && Array.isArray(args[0]) ? args[0] : slice.call(args, 0);
+        return Array.isArray(args[0]) ? args[0] : slice.call(args, 0);
     }
 
     var toFilter = typeof Sequences !== 'undefined' ?
