@@ -480,6 +480,9 @@ var Emit;
             writable: true,
             value: function value(v) {
                 return Emit.create(function (iter) {
+                    if (v.jquery) {
+                        v = jQuery.makeArray(v);
+                    }
                     Promise.resolve(v).then(iter.next, iter.throw);
                 });
             }
