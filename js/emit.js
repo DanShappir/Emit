@@ -561,7 +561,7 @@ var Emit;
             writable: true,
             value: function events(element) {
                 return Emit.merge(
-                    Emit.value(element.value), 
+                    Emit.value(element.jquery ? element.val() : element.value), 
                     Emit.events('input', element)
                         .map(function (ev) {
                             return ev.target.value;

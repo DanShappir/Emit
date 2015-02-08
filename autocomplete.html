@@ -38,10 +38,7 @@
         var $results = $('ul');
         var $error = $('span');
 
-        Emit.events('keyup', $input)
-            .map(function (e) {
-                return e.target.value; // Project the text from the input
-            })
+        Emit.input($input)
             .filter(function (text) {
                 return text.length > 2; // Only if the text is longer than 2 characters
             })
