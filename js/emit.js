@@ -94,6 +94,12 @@ var Emit;
         });
     }
 
+    function joiner(func) {
+        return function(until) {
+            return this.buffer(until).map(func).flatten();
+        };
+    }
+
     Object.defineProperties(Emit, {
         prototype: {
             value: Object.create(Object.getPrototypeOf({}), {
@@ -401,6 +407,14 @@ var Emit;
                             return vs[0]; 
                         });
                     }
+                },
+                combine: {
+                    writable: true,
+                    value: joiner(Emit.combine)
+                },
+                sync: {
+                    writable: true,
+                    value: joiner(Emit.sync)
                 }
             })
         },
