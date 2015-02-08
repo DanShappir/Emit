@@ -536,6 +536,17 @@ var Emit;
                     });
             }
         },
+        input: {
+            writable: true,
+            value: function events(element) {
+                return Emit.merge(
+                    Emit.value(element.value), 
+                    Emit.events('input', element)
+                        .map(function (ev) {
+                            return ev.target.value;
+                        }));
+            }
+        },
         animationFrames: {
             writable: true,
             value: function animationFrames() {
