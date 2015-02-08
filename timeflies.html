@@ -38,32 +38,38 @@
 
         var text = 'TIME FLIES LIKE AN ARROW',
             container = document.querySelector('#container'),
-            mousemove = Emit.events('mousemove', document);
+            offset = getOffset(container);
 
         // Get the offset on mousemove from the container
-        var mouseMoveOffset = mousemove.map(function (e) {
-            var offset = getOffset(container);
-            return {
-                offsetX : e.clientX - offset.left + document.documentElement.scrollLeft,
-                offsetY : e.clientY - offset.top + document.documentElement.scrollTop
-            };
-        });
-
-        Emit.merge(text.split('').map(function (letter, i) {
-            // Add an element for each letter
-            var s = document.createElement('span');
-            s.innerHTML = letter;
-            s.style.position = 'absolute';
-            container.appendChild(s);
-
-            // move each letter with a delay based upon overall position
-            return mouseMoveOffset.delay(i * 100).map(function (pos) {
-                return { pos: pos, element: s, index: i };
+        var mouseMoveOffset = Emit.events('mousemove', document)
+            .map(function (e) {
+                return {
+                    offsetX : e.clientX - offset.left + document.documentElement.scrollLeft,
+                    offsetY : e.clientY - offset.top + document.documentElement.scrollTop
+                };
             });
-        })).forEach(function (data) {
-            data.element.style.top = data.pos.offsetY + 'px';
-            data.element.style.left = data.pos.offsetX + data.index * 10 + 15 + 'px';
-        });
+
+        Emit.sequence(text.split(''))
+            .map(function (letter) {
+                var element = document.createElement('span');
+                element.textContent = letter;
+                element.style.position = 'absolute';
+                container.appendChild(element);
+                return element;
+            })
+            .count()
+            .map(function (item) {
+                return mouseMoveOffset
+                    .delay(item[1] * 100)
+                    .map(function (pos) {
+                        return { pos: pos, style: item[0].style, index: item[1] };
+                    });
+            })
+            .flatten()
+            .forEach(function (item) {
+                item.style.top = item.pos.offsetY + 'px';
+                item.style.left = item.pos.offsetX + item.index * 10 + 15 + 'px';
+            });
     </script>
 </body>
 </html>

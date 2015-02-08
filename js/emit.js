@@ -433,6 +433,15 @@ var Emit;
                 combine: {
                     writable: true,
                     value: joiner(combine)
+                },
+                count: {
+                    writable: true,
+                    value: function (counter) {
+                        counter || (counter = 0);
+                        return this.map(function (v) {
+                            return [v, counter++];
+                        });
+                    }
                 }
             })
         },
