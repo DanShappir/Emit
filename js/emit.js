@@ -66,13 +66,9 @@ var Emit;
 
     function join(args, isReady) {
         var emitters = multiArgs(args);
-        var done = false;
-
-        function isDone() {
-            return done;
-        }
-
+        var done = Emit.iter();
         return Emit.reusable(function (iter) {
+            done.next(false);
             var values = emitters.map(function () { 
                 return undefined; 
             });
@@ -87,11 +83,9 @@ var Emit;
                 }
             }
             emitters.forEach(function (emitter, index) {
-                emitter.until(isDone).forEach(update.bind(null, index), iter.throw);
+                emitter.until(done).forEach(update.bind(null, index), iter.throw);
             });
-        }, function () {
-            done = true;
-        });
+        }, done.next.bind(done, true));
     }
     function sync() {
         return join(arguments, function isReady(states) {
