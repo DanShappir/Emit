@@ -24,11 +24,18 @@ In addition to the examples included in this repository, there are several onlin
 * [Wikipedia autocomplete at JSFiddle](http://jsfiddle.net/dansh/kb1da60L/)
 * [Time flies like an arrow at JSFiddle](http://jsfiddle.net/dansh/qchopp1g/)
 
+## Terminology
+1. Observable sequence - a sequence of events over time that behaves like a a sequence of elements in [memory] space, such as arrays. Emit library creates and manipulates Observable sequences.
+2. Source / emitter - the origin (left-hand side)of an observable sequence. The source places data items into the observable sequence. The source can also throw exceptions (signal errors) on the observable sequence.
+3. Consumer - the target (right-hand side) of an observable sequence. The target is automatically invoked for every data item placed into the observable sequence.
+
 ## Design and implementation notes
-1. Emit observable sequences are always **hot**. This means they emit data as soon as they can, and to not need to be enabled.
-2. There is no subscribe / unsubscribe mechanism - simply attach a data consumer (function) to an observable sequence to start receiving data.
-3. There is no notification for end-of-data on an observable sequence. Consumers only receive notifications for data and for errors.
-4. Data sources for observable sequence are notified when consumers no longer require data, e.g. [head](). They can use this notification to release resources or detach from events.
+1. Emit is a library, not a framework. It does not mandate any usage methodology, and plays nice with other libraries and frameworks, e.g. jQuery
+2. Emit is small and compact, and implements a simple yet complete API
+3. Emit observable sequences are always **hot**. This means that they do not need to be explicitly enabled.
+4. There is no subscribe / unsubscribe mechanism - simply attach a consumer to an observable sequence to start receiving data.
+5. There is no notification for end-of-data on an observable sequence. Consumers only receive notifications for data and for errors (exceptions).
+6. Sources for observable sequence are notified when consumers no longer require data, e.g. [head](). They can use this notification to release resources or detach from events.
 
 ## API
 Emit functions fall into two main categories:

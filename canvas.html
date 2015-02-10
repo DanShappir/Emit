@@ -38,13 +38,11 @@
         ctx.beginPath();
 
         var mouseButton = Emit.merge(Emit.events('mousedown', canvas).map(true),
-            Emit.events('mouseup', canvas).map(false));
+            Emit.events('mouseup').map(false));
 
         Emit.events('mousemove', canvas)
+            .map(getOffset)
             .buffer(2, 1)
-            .map(function(x) {
-                return x.map(getOffset);
-            })
             .filter(mouseButton)
             .forEach(function (x) {
                 ctx.moveTo(x[0].offsetX, x[0].offsetY);
