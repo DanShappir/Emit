@@ -34,9 +34,9 @@ In addition to the examples included in this repository, there are several onlin
 1. Emit is a library, not a framework. It does not mandate any usage methodology, and plays nice with other libraries and frameworks, e.g. jQuery
 2. Emit is small and compact, and implements a simple yet complete API
 3. Emit observable sequences are always **hot**. This means that they do not need to be explicitly enabled.
-4. There is no subscribe / unsubscribe mechanism - simply attach a consumer to an observable sequence to start receiving data. Indicate that the consumer no longer requires data items using methods such as [until]() and [head]().
+4. There is no subscribe / unsubscribe mechanism - simply attach a consumer to an observable sequence to start receiving data. Indicate that the consumer no longer requires data items using methods such as [until](#untilfilterexpression) and [head](#headnumber).
 5. There is no notification for end-of-data on an observable sequence. Consumers only receive notifications for data and for errors (exceptions).
-6. Sources for observable sequence are notified when consumers no longer require data, for example as result of using [head](). They can use this notification to release resources or detach from events.
+6. Sources for observable sequence are notified when consumers no longer require data, for example as result of using [head](#headnumber). They can use this notification to release resources or detach from events.
 
 ## API
 Emit functions fall into two main categories:
@@ -55,7 +55,7 @@ Returns *true* if candidate is an observable sequence. Returns *false* otherwise
 Create a new observable sequence from a data source, and returns that sequence. This API takes two functions as arguments:
 
 1. source - called whenever an active consumer is attached to observable sequence, with a single argument which implements the *iterator* interface. Invoke the *next* method with a value to push that value into the sequence. Invoke the *throw* method with an error object to signal an error on the sequence.
-2. done (optional) - called whenever a consumer is no longer active, for example as result of [until]() or [head](). The same *iterator* argument is also passed to this function.
+2. done (optional) - called whenever a consumer is no longer active, for example as result of [until](#untilfilterexpression) or [head](). The same *iterator* argument is also passed to this function.
 
 In addition, both functions are invoked with the same context, which is initially an empty object. The functions can utilize this context to store private state information.
 
@@ -94,7 +94,7 @@ Emit.value(Promise.resolve('tada')).forEach((v) => console.log(v)); // output ta
 ```
 
 ### Emit.sequence(s[, depth])
-Create a new observable sequence from a sequence of items, such as an array or another observable sequence. As sequence in this context is any object which implements *forEach*. *Emit.sequence* spreads the items of the input sequence in the resulting observable sequence by internally passing the *depth* argument to [flatten](). If *depth* is not specified, a default value 0 (non recursive) is used.
+Create a new observable sequence from a sequence of items, such as an array or another observable sequence. As sequence in this context is any object which implements *forEach*. *Emit.sequence* spreads the items of the input sequence in the resulting observable sequence by internally passing the *depth* argument to [flatten](#flatten). If *depth* is not specified, a default value 0 (non recursive) is used.
 
 ```javascript
 Emit.sequence([1, 2, 3]).forEach((v) => console.log(v)); // output 1, 2, 3
@@ -113,7 +113,7 @@ seq.next(42); // Outputs 42
 ```
 
 ### Emit.matcher(test[, until])
-Create a new observable sequence that also implement the ES6 iterator interface: *next* and *throw*, and also implements a *test* method. Such an observable sequence is intended to be used as an argument for the [match]() method. The test argument can be either a function, in which case it will be attached as-is to the resulting observable sequence, or itself be an observable sequence. If the latter, then the [latest]() getter will be used to extract the last value from that sequence, and its truthiness will be used to determine the match.
+Create a new observable sequence that also implement the ES6 iterator interface: *next* and *throw*, and also implements a *test* method. Such an observable sequence is intended to be used as an argument for the [match](#matchm1-m2---m1-m2-) method. The test argument can be either a function, in which case it will be attached as-is to the resulting observable sequence, or itself be an observable sequence. If the latter, then the [latest](#latest) getter will be used to extract the last value from that sequence, and its truthiness will be used to determine the match.
 
 If *test* is an observable sequence then a second argument *until* can be specified to control its duration.
 
