@@ -447,7 +447,7 @@ var Emit;
         matcher: writable(function (test, until) {
             var matcher = Emit.iter();
             matcher.test = Emit.isEmitter(test) ?
-                test.until(until).latest :
+                test.until(until || function () { return false; }).latest :
                 toFilter(test);
             return matcher;
         }),
