@@ -172,7 +172,7 @@ Creates an observable sequence that emits every *delay* period of milliseconds, 
 
 ## Observable Sequence Methods
 
-### .forEach(callback[, report])
+### .forEach(iter | callback[, report])
 Executes the function specified as callback for every element emitted on the observable sequence. The *callback* function is invoked with two arguments: the emitted value, and a reference to the observable sequence. An optional *report* function can be specified, which will catch exceptions thrown on the observable sequence. If specified, *report* will be invoked with two arguments: the thrown value, and a reference to the observable sequence.
 
 The *forEach* method returns a reference to the observable sequence so that it can be chained.
@@ -180,6 +180,16 @@ The *forEach* method returns a reference to the observable sequence so that it c
 ```javascript
 // Outputs 1, 2, 3, ... one number each second
 Emit.interval(1000).accumulate((r) => r + 1, 0).forEach((v) => console.log(v));
+```
+
+Alternatively, *forEach* can be passed an object implementing the iterator interface. The iterator's *next* method will be used for the *callback*, and *throw* method will be used for reporting errors. This can be used to attached observable sequences:
+
+```javascript
+var x = Emit.iter();
+x.forEach((v) => console.log(v));
+var y = Emit.iter();
+y.forEach(x);
+y.next(42); /// Output 52
 ```
 
 ### .match([m1, m2, ...] | m1, m2, ...)
@@ -222,11 +232,21 @@ Emit.interval(1000).accumulate((r) => r + 1, 0).until((v) => v >= 3)forEach((v) 
 ```
 
 ### .head([number])
-Given an observable sequence, passes its first *number* elements. If *number* isn't specified, it defaults to 1.
+Given an observable sequence, creates an observable sequence that contains at most *number* of items. If *number* isn't specified, it defaults to 1.
 
 ### .delay(duration)
+Given an observable sequence, creates an observable sequence which contains the same items as the original, but delayed by the specified duration.
 
 ### .distinct()
+Given an observable sequence, creates an observable sequence which contains unique sequential values. That is, if the original sequence emits the same value two or more consecutive times, only the first instance will be passed through
+
+```javascript
+var x = Emit.iter();
+x.distinct().forEach((v) => console.log(v));
+x.next(1); // Output 1
+x.next(1); // No output
+x.next(2); // Output 2
+```
 
 ### .flatten()
 
