@@ -27,8 +27,10 @@
     <script>
         'use strict';
 
-        Emit.sync(Emit.events('mousemove', window), Emit.animationFrames())
-            .until(Emit.events('click', window))
+        var click = Emit.events('click');
+
+        Emit.sync(Emit.events('mousemove'), Emit.interval(500))
+            .until(click)
             .map(function (v) {
                 return v[0];
             }).filter(function (ev) {
@@ -37,7 +39,7 @@
                 this.transform = 'translate3d(' + ev.clientX + 'px,' + ev.clientY + 'px,0)';
             }.bind(document.querySelector('div').style));
 
-        Emit.events('click', window).head().forEach(function () { alert('bye'); });
+        click.head().forEach(alert.bind(window, 'bye'));
     </script>
 </body>
 </html>

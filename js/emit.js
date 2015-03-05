@@ -154,7 +154,7 @@ var Emit;
                             var v = yield;
                             matchers.some(function (matcher) {
                                 if (!done.has(matcher) && matcher.test(v, this)) {
-                                    if (typeof matcher.next === 'function') {
+                                    if (isIter(matcher)) {
                                         if (matcher.next(v, this).done) {
                                             done.add(matcher);
                                         }
@@ -353,24 +353,6 @@ var Emit;
                     return [v, counter++];
                 });
             }),
-            listen: writable(function (listener) {
-                var pump = this._pump;
-                var done = false;
-                return Emit.reusable(function (iter) {
-                    pump(function* () {
-                        try {
-                            do {
-                                done = done || listener.next(v).done;
-                            } while (!iter.next(v).done);
-                        } catch (e) {
-                            if (!done) {
-                                listener.throw(e);
-                            }
-                            iter.throw(e);
-                        }
-                    });
-                });
-            }),
             didEmit: {
                 get: function () {
                     var result = false;
@@ -465,7 +447,7 @@ var Emit;
         matcher: writable(function (test, until) {
             var matcher = Emit.iter();
             matcher.test = Emit.isEmitter(test) ?
-                test.until(until).latest :
+                test.until(until || function () { return false; }).latest :
                 toFilter(test);
             return matcher;
         }),
@@ -486,6 +468,7 @@ var Emit;
         sync: writable(sync),
         combine: writable(combine),
         events: writable(function (type, element) {
+            element || (element = window);
             return Emit.reusable(function (iter) {
                     if (typeof element.on === 'function') {
                         element.on(type, iter.next);

@@ -1,5 +1,5 @@
 # Emit
-Emit is a light-weight, Open Source library for [Reactive Programming](https://gist.github.com/staltz/868e7e9bc2a7b8c1f754) using JavaScript. Emit utilizes ECMAScript 6 (ES6) generators and iterators for implementing observable sequences. As a result, Emit is very concise, and easily extensible. Emit provides various operators for the observable sequences, modeled after array iteration methods. This makes it easy to use, in a way that will be familiar to most JavaScript developers.
+Emit is a light-weight, Open Source library for [Reactive Programming](https://gist.github.com/staltz/868e7e9bc2a7b8c1f754) using JavaScript. Emit utilizes ECMAScript 6 (ES6) generators and iterators for implementing observable sequences. As a result, Emit is very concise, and easily extensible. Despite its compact size, Emit provides a wide variety of operators for observable sequences, modeled after array iteration methods. This makes Emit easy to use, in a way that will be familiar to most JavaScript developers.
 
 ```javascript
 // Clock that updates every second, using Emit + jQuery
@@ -17,18 +17,26 @@ Simply use [Bower](http://bower.io/):
 3. Reference the file: *bower_components/Emit/js/emit.js*
  
 ## Examples
-In addition to the examples included in this repository, there are several online:
+In addition to the examples included in this repository, there are several online examples:
 
-* [Sum numeirc fields at JSFiddle](http://jsfiddle.net/dansh/zLocda7m/)
-* [Draw on canvas at JSFiddle](http://jsfiddle.net/dansh/s9znhzzq/)
 * [Wikipedia autocomplete at JSFiddle](http://jsfiddle.net/dansh/kb1da60L/)
+* [Draw on canvas at JSFiddle](http://jsfiddle.net/dansh/s9znhzzq/)
+* [Color picker at JSFiddle](http://jsfiddle.net/dansh/5jnuorf7/)
+* [Sum numeirc fields at JSFiddle](http://jsfiddle.net/dansh/zLocda7m/)
 * [Time flies like an arrow at JSFiddle](http://jsfiddle.net/dansh/qchopp1g/)
 
+## Terminology
+1. Observable sequence - a sequence of events over time that behaves like a a sequence of elements in [memory] space, such as arrays. The Emit library creates and manipulates observable sequences.
+2. Source / emitter - the origin (left-hand side)of an observable sequence. The source places data items into the observable sequence. The source can also throw exceptions (signal errors) on the observable sequence.
+3. Consumer - the target (right-hand side) of an observable sequence. The target is automatically invoked for every data item placed into the observable sequence.
+
 ## Design and implementation notes
-1. Emit observable sequences are always **hot**. This means they emit data as soon as they can, and to not need to be enabled.
-2. There is no subscribe / unsubscribe mechanism - simply attach a data consumer (function) to an observable sequence to start receiving data.
-3. There is no notification for end-of-data on an observable sequence. Consumers only receive notifications for data and for errors.
-4. Data sources for observable sequence are notified when consumers no longer require data, e.g. [head](). They can use this notification to release resources or detach from events.
+1. Emit is a library, not a framework. It does not mandate any usage methodology, and plays nice with other libraries and frameworks, e.g. jQuery
+2. Emit is small and compact, and implements a simple yet complete API
+3. Emit observable sequences are always **hot**. This means that they do not need to be explicitly enabled.
+4. There is no subscribe / unsubscribe mechanism - simply attach a consumer to an observable sequence to start receiving data. Indicate that the consumer no longer requires data items using methods such as [until](#untilfilterexpression) and [head](#headnumber).
+5. There is no notification for end-of-data on an observable sequence. Consumers only receive notifications for data and for errors (exceptions).
+6. Sources for observable sequence are notified when consumers no longer require data, for example as result of using [head](#headnumber). They can use this notification to release resources or detach from events.
 
 ## API
 Emit functions fall into two main categories:
@@ -43,20 +51,35 @@ The first category mainly provides functions for creating new observable sequenc
 ### Emit.isEmitter(candidate)
 Returns *true* if candidate is an observable sequence. Returns *false* otherwise.
 
-### Emit.create(source[,done])
-Create a new observable sequence from a data source, and returns that sequence. The function accepts two functions:
+### Emit.create(source[, done])
+Create a new observable sequence from a data source, and returns that sequence. This API takes two functions as arguments:
 
-1. source - called whenever an active consumer is attached to observable sequence. Called with a single argument which implements the *iterator* interface. Invoke the *next* method with a value to push that value into the sequence. Invoke the *throw* method with an error object to signal an error on the sequence.
-2. done (optional) - called whenever a consumer is no longer active, for example as result of [until]() or [head](). The same *iterator* argument is also passed to this function.
+1. source - called whenever an active consumer is attached to observable sequence, with a single argument which implements the *iterator* interface. Invoke the *next* method with a value to push that value into the sequence. Invoke the *throw* method with an error object to signal an error on the sequence.
+2. done (optional) - called whenever a consumer is no longer active, for example as result of [until](#untilfilterexpression) or [head](). The same *iterator* argument is also passed to this function.
 
 In addition, both functions are invoked with the same context, which is initially an empty object. The functions can utilize this context to store private state information.
 
 ```javascript
-var interval = Emit.create((iter) => setInterval(iter.next, 1000)); // notify every second
+// notify every second. Each consumer will utilize a distinct setInterval instance
+var interval = Emit.create(function (iter) {
+	this.id = window.setInterval(iter.next, 1000);
+}, function () {
+	window.clearInterval(this.id);
+});
 ```
 
-### Emit.reusable(source[,done])
-Like [Emit.create]() with built-in support for multiple consumers. *source* is called only when the number of active consumers goes up from 0 to 1. And *done* is called only when the number of active consumers goes back down to 0. Any value emitted will be transferred to all the active consumers.
+### Emit.reusable(source[, done])
+Like [Emit.create]() with enhanced support for multiple concurrent consumers. *source* is invoked only when the number of active consumers goes up from 0 to 1. And *done* is called only when the number of active consumers goes back down to 0. Any value emitted will be transferred to all the active consumers.
+
+```javascript
+// notify every second. All concurrent consumers utilize a single setInterval instance
+var id;
+var interval = Emit.reusable(function (iter) {
+	id = window.setInterval(iter.next, 1000);
+}, function () {
+	window.clearInterval(id);
+});
+```
 
 ### Emit.value(v)
 Create a new observable sequence which contains a single value.
@@ -70,14 +93,37 @@ If the provided value is thenable (has a *then* method) then its success value w
 Emit.value(Promise.resolve('tada')).forEach((v) => console.log(v)); // output tada
 ```
 
+### Emit.sequence(s[, depth])
+Create a new observable sequence from a sequence of items, such as an array or another observable sequence. As sequence in this context is any object which implements *forEach*. *Emit.sequence* spreads the items of the input sequence in the resulting observable sequence by internally passing the *depth* argument to [flatten](#flatten). If *depth* is not specified, a default value 0 (non recursive) is used.
+
+```javascript
+Emit.sequence([1, 2, 3]).forEach((v) => console.log(v)); // output 1, 2, 3
+```
+
 ### Emit.iter()
-Create a new observable sequence that also implement the ES6 iterator interface: *next* and *throw*. To emit values on this observable sequence, invoke *next* with the values as arguments. To signal an error on the sequence, call *throw* and provide the error object.
+Create a new observable sequence that also implement the ES6 iterator interface: *next* and *throw*. To emit values into the observable sequence, invoke *next* with the values as arguments. To signal an error on the sequence, call *throw* and provide the error object.
 
 The *next* method returns an object that has a *done* property that is *true* is the observable sequence is no longer accepting elements, and *false* otherwise.
+
+**Note:** unlike standard ES6 iterators, an observable sequence created by *Emit.iter* can revert back from *done* to *not done* when a new consumer is attached to it.
 
 ```javascript
 var seq = Emit.inject().forEach((v) => console.log(v));
 seq.next(42); // Outputs 42
+```
+
+### Emit.matcher(test[, until])
+Create a new observable sequence that also implement the ES6 iterator interface: *next* and *throw*, and also implements a *test* method. Such an observable sequence is intended to be used as an argument for the [match](#matchm1-m2---m1-m2-) method. The test argument can be either a function, in which case it will be attached as-is to the resulting observable sequence, or itself be an observable sequence. If the latter, then the [latest](#latest) getter will be used to extract the last value from that sequence, and its truthiness will be used to determine the match.
+
+If *test* is an observable sequence then a second argument *until* can be specified to control its duration.
+
+```javascript
+var matcher = Emit.matcher((v) => v % 2);
+var source = Emit.iter();
+Emit.match(matcher);
+matcher.forEach((v) => console.log(v, 'is odd'));
+source.next(7); // output "7 is odd"
+source.next(8); // no output
 ```
 
 ### Emit.merge([s1, s2, ...] | s1, s2, ...)
@@ -126,7 +172,7 @@ Creates an observable sequence that emits every *delay* period of milliseconds, 
 
 ## Observable Sequence Methods
 
-### .forEach(callback[, report])
+### .forEach(iter | callback[, report])
 Executes the function specified as callback for every element emitted on the observable sequence. The *callback* function is invoked with two arguments: the emitted value, and a reference to the observable sequence. An optional *report* function can be specified, which will catch exceptions thrown on the observable sequence. If specified, *report* will be invoked with two arguments: the thrown value, and a reference to the observable sequence.
 
 The *forEach* method returns a reference to the observable sequence so that it can be chained.
@@ -134,6 +180,16 @@ The *forEach* method returns a reference to the observable sequence so that it c
 ```javascript
 // Outputs 1, 2, 3, ... one number each second
 Emit.interval(1000).accumulate((r) => r + 1, 0).forEach((v) => console.log(v));
+```
+
+Alternatively, *forEach* can be passed an object implementing the iterator interface. The iterator's *next* method will be used for the *callback*, and *throw* method will be used for reporting errors. This can be used to attached observable sequences:
+
+```javascript
+var x = Emit.iter();
+x.forEach((v) => console.log(v));
+var y = Emit.iter();
+y.forEach(x);
+y.next(42); /// Output 52
 ```
 
 ### .match([m1, m2, ...] | m1, m2, ...)
@@ -176,11 +232,21 @@ Emit.interval(1000).accumulate((r) => r + 1, 0).until((v) => v >= 3)forEach((v) 
 ```
 
 ### .head([number])
-Given an observable sequence, passes its first *number* elements. If *number* isn't specified, it defaults to 1.
+Given an observable sequence, creates an observable sequence that contains at most *number* of items. If *number* isn't specified, it defaults to 1.
 
 ### .delay(duration)
+Given an observable sequence, creates an observable sequence which contains the same items as the original, but delayed by the specified duration.
 
 ### .distinct()
+Given an observable sequence, creates an observable sequence which contains unique sequential values. That is, if the original sequence emits the same value two or more consecutive times, only the first instance will be passed through
+
+```javascript
+var x = Emit.iter();
+x.distinct().forEach((v) => console.log(v));
+x.next(1); // Output 1
+x.next(1); // No output
+x.next(2); // Output 2
+```
 
 ### .flatten()
 
