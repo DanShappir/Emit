@@ -199,7 +199,7 @@ var Emit;
                                     prev.then(function (vs) {
                                         iter.next(vs[1]);
                                     }, function (e) {
-                                        rethrow(e);
+                                        iter.throw(e);
                                     });
                                 } else {
                                     iter.next(v);
