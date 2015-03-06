@@ -248,14 +248,39 @@ x.next(1); // No output
 x.next(2); // Output 2
 ```
 
-### .flatten()
+### .flatten([depth])
+Given an observable sequence containing sequences, such as arrays, creates an observable sequence flattened to contain the individual items. The optional depth argument specifies the degree of flattening. By default its value is 0, which flattens a single level. Specify a negative value as depth for unlimited flattening
 
-### .reduce(accumulator[, seed])
+```javascript
+Emit.sequence([[1,2],[3,4]]).flatten().forEach((v) => console.log(v)); // 1, 2, 3, 4
+```
+
+### .accumulate(accumulator[, seed])
+Given an observable sequence, creates an observable sequence which contains the accumulated values generate by the accumulator function. An optional seed value specifies the initial value for the accumulated. If not specified *undefined* is used
+
+```javascript
+Emit.sequence([1,2,3,4]).accumulate((s, v) => s + v, 0).forEach((v) => console.log(v)); // 1, 3, 6, 10
+```
 
 ### .buffer(until[, overlap])
+Given an observable sequence, creates an observable sequence which contains items buffered together into arrays. the *until* argument specifies how many items to buffer together. If it is a number then that number of items will be buffered. If it is a function then buffering will be until that function returns *true* for the given item. If *until* is itself a sequence, buffering will be until that sequence emits an item.
+
+The optional *overlap* argument specifies the degree of overlap between consecutive items in the output sequence. By default there is no overlap. a positive number specifies that that number of items will be retained for the next buffer. A negative value specifies that that number of items will be excluded from the next buffer.
 
 ### .didEmit
+A getter that returns a function. That function will return *true* is the observable sequence emitted a value since the last time the function was called, *false* otherwise.
+
+```javascript
+var x = Emit.iter();
+var f = x.didEmit;
+console.log(f()); // false
+x.next(42);
+console.log(f()); // true
+console.log(f()); // false
+```
 
 ### .latest
+A getter that returns a function. That function will return latest value emitted by the observable sequence. If the sequence has yet to emit a value, returns *undefined*.
 
 ### .throttle(duration)
+Given an observable sequence, creates an observable sequence into which the original items are placed after the specified duration.

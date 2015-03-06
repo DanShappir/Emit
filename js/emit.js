@@ -367,7 +367,8 @@ var Emit;
                 }
             },
             latest: {
-                get: function (result) {
+                get: function () {
+                    var result;
                     this.forEach(function (v) {
                         result = v;
                     });
